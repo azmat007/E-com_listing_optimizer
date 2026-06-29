@@ -21,12 +21,14 @@ function buildListing({ productName, features, category }: {
   };
 }
 
-async function getOpenAI() {
-  if (!process.env.OPENAI_API_KEY) return null;
+async function getGroqClient() {
+  if (!process.env.GROQ_API_KEY) return null;
   try {
-    const mod = await import('openai');
-    const OpenAICtor = (mod as any).default || (mod as any).OpenAI;
-    return new OpenAICtor({ apiKey: process.env.OPENAI_API_KEY });
+    const { OpenAI } = await import('openai');
+    return new OpenAI({
+      apiKey: process.env.GROQ_API_KEY,
+      baseURL: 'https://api.groq.com/openai/v1',
+    });
   } catch {
     return null;
   }
@@ -50,13 +52,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const openai = await getOpenAI();
-    if (!openai) {
+    const groq = await getGroqClient();
+    if (!groq) {
       return NextResponse.json({ ...buildListing({ productName, features, category }) });
     }
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.1-70b-versatile',
       temperature: 0.7,
       max_tokens: 1200,
       response_format: { type: 'json_object' },

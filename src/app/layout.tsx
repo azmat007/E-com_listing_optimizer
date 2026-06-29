@@ -17,8 +17,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className={cn(openSans.className, "min-h-screen text-zinc-900 antialiased")}>
-        {children}
+      <body className={cn(openSans.className, "min-h-screen bg-white text-zinc-900 antialiased")}>
+        <div className="min-h-screen bg-white">
+          {children}
+        </div>
       </body>
     </html>
   );

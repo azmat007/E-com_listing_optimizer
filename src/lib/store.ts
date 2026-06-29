@@ -1,19 +1,63 @@
-import { create } from "zustand";
+import { create } from 'zustand';
+
+type ListingResult = {
+  title: string;
+  bullets: string[];
+  description: string;
+  imageUrls?: string[];
+  imagePrompt?: string;
+  recommendedPrices?: Record<string, number>;
+};
+
+type HistoryItem = ListingResult & {
+  id: number;
+  productName: string;
+  features: string;
+  category: string;
+  platform: string;
+  createdAt: string;
+};
 
 type AppState = {
-  _result: { title: string; bullets: string[]; description: string } | null;
+  productName: string;
+  category: string;
+  features: string;
+  platform: string;
   loading: boolean;
   error: string | null;
-  setResult: (result: { title: string; bullets: string[]; description: string }) => void;
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
+  _result: ListingResult | null;
+  history: HistoryItem[];
+  setProductName: (v: string) => void;
+  setCategory: (v: string) => void;
+  setFeatures: (v: string) => void;
+  setPlatform: (v: string) => void;
+  setResult: (v: ListingResult | null) => void;
+  setLoading: (v: boolean) => void;
+  setError: (v: string | null) => void;
+  setHistory: (v: HistoryItem[]) => void;
+  reset: () => void;
+};
+
+const initialState = {
+  productName: '',
+  category: 'Electronics',
+  features: '',
+  platform: 'amazon',
+  loading: false,
+  error: null,
+  _result: null,
+  history: [],
 };
 
 export const useAppStore = create<AppState>((set) => ({
-  _result: null,
-  loading: false,
-  error: null,
-  setResult: (result) => set({ _result: result, error: null }),
-  setLoading: (loading) => set({ loading }),
-  setError: (error) => set({ error }),
+  ...initialState,
+  setProductName: (v) => set({ productName: v }),
+  setCategory: (v) => set({ category: v }),
+  setFeatures: (v) => set({ features: v }),
+  setPlatform: (v) => set({ platform: v }),
+  setResult: (v) => set({ _result: v }),
+  setLoading: (v) => set({ loading: v }),
+  setError: (v) => set({ error: v }),
+  setHistory: (v) => set({ history: v }),
+  reset: () => set(initialState),
 }));
