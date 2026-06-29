@@ -165,6 +165,8 @@ export default function Home() {
     };
   }, [showHistory]);
 
+  const [sourceUrl, setSourceUrl] = useState("");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -178,7 +180,7 @@ export default function Home() {
       const res = await fetch("/api/generate-listing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productName, category, features, platform }),
+        body: JSON.stringify({ productName, category, features, platform, sourceUrl }),
       });
 
       const data = await res.json();
@@ -331,6 +333,16 @@ export default function Home() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">Product Page URL (optional)</label>
+            <input
+              value={sourceUrl}
+              onChange={(e) => setSourceUrl(e.target.value)}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2"
+              placeholder="https://www.amazon.ae/dp/..."
+            />
           </div>
 
           <div>
