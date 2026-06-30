@@ -256,12 +256,16 @@ export default function Home() {
 
   const exportCurrent = () => {
     if (!_result?.title) return;
+    const keywords = Array.isArray((_result as any).keywords) ? ( _result as any ).keywords : [];
+    const keywordsAr = Array.isArray((_result as any).keywordsAr) ? ( _result as any ).keywordsAr : [];
     const payload = {
       productName,
       category,
       features,
       platform,
       ..._result,
+      keywords,
+      keywordsAr,
       imageUrls,
       recommendedPrices,
       created_at: new Date().toISOString(),
@@ -273,6 +277,12 @@ export default function Home() {
       ...(_result.bullets || []),
       "",
       _result.description,
+      "",
+      "Keywords EN:",
+      ...keywords,
+      "",
+      "Keywords AR:",
+      ...keywordsAr,
     ].join("\n"));
   };
 
@@ -407,34 +417,120 @@ export default function Home() {
         <section className="mt-8 space-y-6">
           <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Optimized Title</h2>
+              <h2 className="text-lg font-semibold">Optimized Title (EN)</h2>
               <span className="text-xs text-zinc-500">
-                {(_result.title || "").length}/200
+                {(_result.title || '').length}/200
               </span>
             </div>
             <p className="mt-2 text-sm text-zinc-800">{_result.title}</p>
             <button
-              onClick={() => copyText(_result.title, "title")}
+              onClick={() => copyText(_result.title, 'title')}
               className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
             >
-              {copied === "title" ? "Copied" : "Copy title"}
+              {copied === 'title' ? 'Copied' : 'Copy title'}
             </button>
           </div>
 
+          {(_result as any).titleAr && (
+            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Optimized Title (AR)</h2>
+                <span className="text-xs text-zinc-500">
+                  {((_result as any).titleAr || '').length}/200
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-zinc-800" dir="rtl">
+                {(_result as any).titleAr}
+              </p>
+              <button
+                onClick={() => copyText((_result as any).titleAr, 'titleAr')}
+                className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
+              >
+                {copied === 'titleAr' ? 'Copied' : 'Copy title AR'}
+              </button>
+            </div>
+          )}
+
           <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Bullet Points</h2>
+            <h2 className="text-lg font-semibold">Bullet Points (EN)</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-800">
               {(_result.bullets || []).map((bullet, i) => (
                 <li key={i}>{bullet}</li>
               ))}
             </ul>
             <button
-              onClick={() => copyText((_result.bullets || []).join("\n"), "bullets")}
+              onClick={() => copyText((_result.bullets || []).join('\n'), 'bullets')}
               className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
             >
-              {copied === "bullets" ? "Copied" : "Copy bullets"}
+              {copied === 'bullets' ? 'Copied' : 'Copy bullets'}
             </button>
           </div>
+
+          {(_result as any).descriptionAr && (
+            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold">Description (AR)</h2>
+              <p className="mt-2 whitespace-pre-line text-sm text-zinc-800" dir="rtl">
+                {(_result as any).descriptionAr}
+              </p>
+              <button
+                onClick={() => copyText((_result as any).descriptionAr, 'descriptionAr')}
+                className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
+              >
+                {copied === 'descriptionAr' ? 'Copied' : 'Copy description AR'}
+              </button>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold">Description (EN)</h2>
+            <p className="mt-2 whitespace-pre-line text-sm text-zinc-800">
+              {_result.description}
+            </p>
+            <button
+              onClick={() => copyText(_result.description, 'description')}
+              className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
+            >
+              {copied === 'description' ? 'Copied' : 'Copy description'}
+            </button>
+          </div>
+
+          {Array.isArray((_result as any).keywords) && (_result as any).keywords.length > 0 && (
+            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold">GEO Keywords (EN)</h2>
+              <p className="mt-2 flex flex-wrap gap-2 text-sm text-zinc-800">
+                {((_result as any).keywords || []).map((k: string, idx: number) => (
+                  <span key={idx} className="rounded-full border border-zinc-200 px-3 py-1">
+                    {k}
+                  </span>
+                ))}
+              </p>
+              <button
+                onClick={() => copyText(((_result as any).keywords || []).join(', '), 'keywords')}
+                className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
+              >
+                {copied === 'keywords' ? 'Copied' : 'Copy keywords'}
+              </button>
+            </div>
+          )}
+
+          {Array.isArray((_result as any).keywordsAr) && (_result as any).keywordsAr.length > 0 && (
+            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold">GEO Keywords (AR)</h2>
+              <p className="mt-2 flex flex-wrap gap-2 text-sm text-zinc-800" dir="rtl">
+                {((_result as any).keywordsAr || []).map((k: string, idx: number) => (
+                  <span key={idx} className="rounded-full border border-zinc-200 px-3 py-1">
+                    {k}
+                  </span>
+                ))}
+              </p>
+              <button
+                onClick={() => copyText(((_result as any).keywordsAr || []).join(', '), 'keywordsAr')}
+                className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
+              >
+                {copied === 'keywordsAr' ? 'Copied' : 'Copy keywords AR'}
+              </button>
+            </div>
+          )}
 
           <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold">Description</h2>
@@ -452,12 +548,15 @@ export default function Home() {
           {imageUrls.length > 0 && (
             <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-semibold">Generated Images</h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                Main image: pure white background. Secondary images: lifestyle/detail shots.
+              </p>
               <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-3">
                 {imageUrls.map((url, i) => (
                   <img
                     key={i}
                     src={url}
-                    alt="Generated listing image"
+                    alt={i === 0 ? 'Main product image white background' : 'Generated listing image'}
                     className="rounded-lg border border-zinc-200"
                   />
                 ))}

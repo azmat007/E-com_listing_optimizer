@@ -2,8 +2,12 @@ import { create } from 'zustand';
 
 type ListingResult = {
   title: string;
+  titleAr: string;
   bullets: string[];
   description: string;
+  descriptionAr: string;
+  keywords: string[];
+  keywordsAr: string[];
   imageUrls?: string[];
   imagePrompt?: string;
   recommendedPrices?: Record<string, number>;
