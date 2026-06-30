@@ -187,23 +187,27 @@ export default function Home() {
       if (!res.ok) throw new Error(data?.error || "Generation failed.");
       setResult(data);
 
-      const entry = await saveListing(data);
       if (showHistory) refreshHistory();
 
-      if (generateImage && entry?.id) {
-        const imgRes = await fetch(
-          `/api/listings/${entry.id}/image?prompt=${encodeURIComponent(
-            `${productName} ${category} ${features}`
-          )}`
-        );
-        const imgData = await imgRes.json();
-        if (!imgRes.ok) throw new Error(imgData?.error || "Image generation failed.");
-        setImageUrls(imgData.urls as string[]);
+      if (generateImage) {
+        const prompt =
+          ((data as any)?.imagePrompts?.main ||
+            `${productName} ${features}`);
 
-        const priceRes = await fetch(`/api/listings/${entry.id}/prices`);
-        const priceData = await priceRes.json();
-        if (!priceRes.ok) throw new Error(priceData?.error || "Pricing failed.");
-        setRecommendedPrices(priceData.prices as Record<string, number>);
+        const secondaryPrompts = Array.isArray((data as any)?.imagePrompts?.secondary)
+          ? ((data as any).imagePrompts.secondary as string[])
+          : [prompt];
+
+        const imagePayload: string[] = [prompt, ...secondaryPrompts.slice(0, 4)];
+
+        const imgRes = await fetch('/api/generate-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompts: imagePayload }),
+        });
+        const imgData = await imgRes.json();
+        if (!imgRes.ok) throw new Error(imgData?.error || 'Image generation failed.');
+        setImageUrls(imgData.urls as string[]);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong.";
@@ -256,8 +260,8 @@ export default function Home() {
 
   const exportCurrent = () => {
     if (!_result?.title) return;
-    const keywords = Array.isArray((_result as any).keywords) ? ( _result as any ).keywords : [];
-    const keywordsAr = Array.isArray((_result as any).keywordsAr) ? ( _result as any ).keywordsAr : [];
+    const keywords = _result.keywords || [];
+    const keywordsAr = _result.keywordsAr || [];
     const payload = {
       productName,
       category,
@@ -270,20 +274,23 @@ export default function Home() {
       recommendedPrices,
       created_at: new Date().toISOString(),
     };
-    downloadJson("listing.json", payload);
-    downloadText("listing.txt", [
-      _result.title,
-      "",
-      ...(_result.bullets || []),
-      "",
-      _result.description,
-      "",
-      "Keywords EN:",
-      ...keywords,
-      "",
-      "Keywords AR:",
-      ...keywordsAr,
-    ].join("\n"));
+    downloadJson('listing.json', payload);
+    downloadText(
+      'listing.txt',
+      [
+        _result.title,
+        '',
+        ...(_result.bullets || []),
+        '',
+        _result.description,
+        '',
+        'Keywords EN:',
+        ...keywords,
+        '',
+        'Keywords AR:',
+        ...keywordsAr,
+      ].join('\n')
+    );
   };
 
   const exportHistoryCsv = () => downloadCsv("listings.csv", history);
@@ -431,19 +438,19 @@ export default function Home() {
             </button>
           </div>
 
-          {(_result as any).titleAr && (
+          {_result.titleAr && (
             <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Optimized Title (AR)</h2>
                 <span className="text-xs text-zinc-500">
-                  {((_result as any).titleAr || '').length}/200
+                  {(_result.titleAr || '').length}/200
                 </span>
               </div>
               <p className="mt-2 text-sm text-zinc-800" dir="rtl">
-                {(_result as any).titleAr}
+                {_result.titleAr}
               </p>
               <button
-                onClick={() => copyText((_result as any).titleAr, 'titleAr')}
+                onClick={() => copyText(_result.titleAr, 'titleAr')}
                 className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
               >
                 {copied === 'titleAr' ? 'Copied' : 'Copy title AR'}
@@ -548,7 +555,7 @@ export default function Home() {
           {imageUrls.length > 0 && (
             <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-semibold">Generated Images</h2>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-2 text-xs text-zinc-500">
                 Main image: pure white background. Secondary images: lifestyle/detail shots.
               </p>
               <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-3">
@@ -562,6 +569,11 @@ export default function Home() {
                 ))}
               </div>
             </div>
+          )}
+          {generateImage && !imageUrls.length && (
+            <p className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm text-sm text-zinc-500">
+              No images generated yet. Click Generate Listing to create up to 5 product images.
+            </p>
           )}
 
           {Object.keys(recommendedPrices).length > 0 && (

@@ -17,29 +17,34 @@ function buildListing({
   features,
   category,
   sourceContext = '',
-  platform = 'amazon',
 }: {
   productName: string;
   features: string;
   category: string;
   sourceContext?: string;
-  platform?: string;
 }): ListingResult {
   const safeCategory = category || 'General';
+  const featureList = (features || '')
+    .split(',')
+    .map((f) => f.trim())
+    .filter(Boolean);
+
+  const primaryFeature = featureList[0] || 'premium quality';
+
   return {
     title: `${productName} — ${safeCategory} Edition`,
     titleAr: `${productName} — نسخة ${safeCategory}`,
     bullets: [
-      `Premium ${safeCategory.toLowerCase()} experience tailored for real use.`,
-      `Built-in essentials: ${(features || '').split(',')[0].trim()}.`,
+      `Premium ${safeCategory.toLowerCase()} experience tailored for real use with ${primaryFeature}.`,
+      `Built-in essentials: ${primaryFeature}.`,
       `Reliable performance with consistent daily results.`,
       `Easy setup and customer-oriented design.`,
       `Trusted by professionals and home users alike.`,
     ],
     description: `The ${productName} is a versatile ${safeCategory.toLowerCase()} option designed around the features that matter most: ${features}.${sourceContext ? ' Drawing on marketplace reference material, it aligns with what buyers already expect from comparable listings.' : ''} It focuses on practical usability, consistent results, and straightforward setup, making it well-suited for both professional and everyday use.`,
     descriptionAr: `${productName} هو خيار ${safeCategory.toLowerCase()} متعدد الأغراض مصمم حول الميزات الأكثر أهمية: ${features}. يركز على سهولة الاستخدام والنتائج المتسقة والإعداد البسيط، مما يجعله مناسباً للاستخدام المهني واليومي على حد سواء.`,
-    keywords: [productName, safeCategory, 'UAE', 'Saudi', 'Gulf', ...(features || '').split(',').slice(0, 3).map((f) => f.trim())],
-    keywordsAr: [productName, safeCategory, 'الإمارات', 'السعودية', 'الخليج', ...(features || '').split(',').slice(0, 3).map((f) => f.trim())],
+    keywords: [productName, safeCategory, 'UAE', 'Saudi', 'Gulf', ...featureList.slice(0, 3)],
+    keywordsAr: [productName, safeCategory, 'الإمارات', 'السعودية', 'الخليج', ...featureList.slice(0, 3)],
   };
 }
 
@@ -167,11 +172,12 @@ export async function POST(req: Request) {
 
     const sourceContext = sourceUrl ? await fetchSourceText(sourceUrl) : '';
     const groq = await getGroqClient();
-    const systemPrompt = getSystemPrompt(platform || 'amazon');
-    const userPrompt = getUserPrompt({ productName, features, category, platform: platform || 'amazon', sourceContext });
+    const normalizedPlatform = platform || 'amazon';
+    const systemPrompt = getSystemPrompt(normalizedPlatform);
+    const userPrompt = getUserPrompt({ productName, features, category, platform: normalizedPlatform, sourceContext });
 
     if (!groq) {
-      const fallback = buildListing({ productName, features, category, sourceContext, platform: platform || 'amazon' });
+      const fallback = buildListing({ productName, features, category, sourceContext });
       return NextResponse.json(fallback);
     }
 
@@ -191,7 +197,7 @@ export async function POST(req: Request) {
     try {
       data = JSON.parse(raw) as Partial<ListingResult>;
     } catch {
-      const fallback = buildListing({ productName, features, category, sourceContext, platform: platform || 'amazon' });
+      const fallback = buildListing({ productName, features, category, sourceContext });
       return NextResponse.json(fallback);
     }
 
