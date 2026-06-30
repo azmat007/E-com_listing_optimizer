@@ -10,6 +10,7 @@ type ListingResult = {
   descriptionAr: string;
   keywords: string[];
   keywordsAr: string[];
+  imagePrompts?: { main: string; secondary: string[] };
 };
 
 function buildListing({
@@ -28,8 +29,8 @@ function buildListing({
     .split(',')
     .map((f) => f.trim())
     .filter(Boolean);
-
   const primaryFeature = featureList[0] || 'premium quality';
+  const sourceSuffix = sourceContext ? ' Drawing on marketplace reference material, it aligns with what buyers already expect from comparable listings.' : '';
 
   return {
     title: `${productName} — ${safeCategory} Edition`,
@@ -41,10 +42,19 @@ function buildListing({
       `Easy setup and customer-oriented design.`,
       `Trusted by professionals and home users alike.`,
     ],
-    description: `The ${productName} is a versatile ${safeCategory.toLowerCase()} option designed around the features that matter most: ${features}.${sourceContext ? ' Drawing on marketplace reference material, it aligns with what buyers already expect from comparable listings.' : ''} It focuses on practical usability, consistent results, and straightforward setup, making it well-suited for both professional and everyday use.`,
-    descriptionAr: `${productName} هو خيار ${safeCategory.toLowerCase()} متعدد الأغراض مصمم حول الميزات الأكثر أهمية: ${features}. يركز على سهولة الاستخدام والنتائج المتسقة والإعداد البسيط، مما يجعله مناسباً للاستخدام المهني واليومي على حد سواء.`,
+    description: `The ${productName} is a versatile ${safeCategory.toLowerCase()} option designed around the features that matter most: ${features}.${sourceSuffix} It focuses on practical usability, consistent results, and straightforward setup, making it well-suited for both professional and everyday use.`,
+    descriptionAr: `${productName} هو خيار ${safeCategory.toLowerCase()} متعدد الأغراض مصمم حول الميزات الأساسية، بما في ذلك ${primaryFeature}.${sourceContext ? ' مستوحى من المواد المرجعية للمتجر الإلكتروني، مما يجعله يتماشى مع ما يتوقعه المشترون بالفعل من قوائم مماثلة.' : ''} يركز هذا المنتج على الفائدة العملية والنتائج المتسقة والإعداد البسيط، مما يجعله مثالياً للاستخدام المهني واليومي على حد سواء.`,
     keywords: [productName, safeCategory, 'UAE', 'Saudi', 'Gulf', ...featureList.slice(0, 3)],
     keywordsAr: [productName, safeCategory, 'الإمارات', 'السعودية', 'الخليج', ...featureList.slice(0, 3)],
+    imagePrompts: {
+      main: `${productName} product photo on pure white background, no text, no watermark, 80-90% frame fill`,
+      secondary: [
+        `${productName} lifestyle shot in UAE home setting, natural light, cozy table`,
+        `${productName} close-up detail shot highlighting texture`,
+        `${productName} in-use action shot, daily real-world usage`,
+        `${productName} clean studio composition angle shot`,
+      ],
+    },
   };
 }
 
@@ -60,22 +70,24 @@ function getPlatformKnowledge(platform: string): string {
 
 function getSystemPrompt(platform: string): string {
   const knowledge = getPlatformKnowledge(platform);
-  return `You are a professional e-commerce copywriter for ${platform}. Use the platform knowledge below when generating listings.
-
-${knowledge}
+  const knowledgeNote = knowledge ? `Platform knowledge:\n${knowledge}\n\n` : '';
+  return `${knowledgeNote}You are a professional e-commerce copywriter for ${platform}.
+Follow these language rules strictly:
+- title, bullets, description, descriptionAr: ONLY Gulf Arabic, NO English words except brand/model/product codes and units.
+- keywordsAr: ONLY Gulf Arabic, NO English words.
 
 Output ONLY valid JSON:
 {
-  "title": "string max 200 chars English",
-  "titleAr": "string max 200 chars Arabic (Gulf dialect)",
+  "title": "English title",
+  "titleAr": "Gulf Arabic title",
   "bullets": ["5 bullet points English"],
-  "description": "string 100-300 words English",
-  "descriptionAr": "string 100-300 words Arabic (Gulf dialect)",
-  "keywords": ["5-10 English GEO keywords for UAE/Saudi search"],
-  "keywordsAr": ["5-10 Arabic GEO keywords for UAE/Saudi search"],
+  "description": "English description",
+  "descriptionAr": "Gulf Arabic description",
+  "keywords": ["5-10 English GEO keywords"],
+  "keywordsAr": ["5-10 Arabic GEO keywords"],
   "imagePrompts": {
-    "main": "product on pure white background, no text, no watermark, 80-90% frame fill",
-    "secondary": ["4 prompt lines for lifestyle/detail shots"]
+    "main": "product on pure white background",
+    "secondary": ["4 prompt lines"]
   }
 }`;
 }
@@ -102,7 +114,7 @@ Source page notes: ${(sourceContext || '').slice(0, 4000)}
 Generate a bilingual listing optimized for UAE and Saudi Arabian buyers.`;
 }
 
-async function fetchSourceText(url: string): Promise<string> {
+async function fetchSourceText(url: string): Promise<{ text: string; images: string[] }> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
@@ -116,18 +128,23 @@ async function fetchSourceText(url: string): Promise<string> {
     const res = await fetch(url, init);
     clearTimeout(timeout);
     if (!res.ok) {
-      return '';
+      return { text: '', images: [] };
     }
     const html = await res.text();
-    const stripped = html
+    const text = html
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
-    return stripped;
+    const images = Array.from(new Set((html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi) || []) as string[]))
+      .map((tag) => (tag.match(/src=["']([^"']+)["']/) || [])[1])
+      .filter((src: string | undefined): src is string => Boolean(src))
+      .filter((src) => /^https?:\/\//.test(src))
+      .slice(0, 20);
+    return { text: text.slice(0, 12000), images };
   } catch {
-    return '';
+    return { text: '', images: [] };
   }
 }
 
@@ -149,13 +166,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const {
-      productName,
-      features,
-      category,
-      sourceUrl,
-      platform,
-    } = body as {
+    const { productName, features, category, sourceUrl, platform } = body as {
       productName?: string;
       features?: string;
       category?: string;
@@ -170,14 +181,20 @@ export async function POST(req: Request) {
       );
     }
 
-    const sourceContext = sourceUrl ? await fetchSourceText(sourceUrl) : '';
+    const sourceContext = sourceUrl ? await fetchSourceText(sourceUrl) : { text: '', images: [] };
     const groq = await getGroqClient();
     const normalizedPlatform = platform || 'amazon';
     const systemPrompt = getSystemPrompt(normalizedPlatform);
-    const userPrompt = getUserPrompt({ productName, features, category, platform: normalizedPlatform, sourceContext });
+    const userPrompt = getUserPrompt({
+      productName,
+      features,
+      category,
+      platform: normalizedPlatform,
+      sourceContext: sourceContext.text,
+    });
 
     if (!groq) {
-      const fallback = buildListing({ productName, features, category, sourceContext });
+      const fallback = buildListing({ productName, features, category, sourceContext: sourceContext.text });
       return NextResponse.json(fallback);
     }
 
@@ -197,19 +214,30 @@ export async function POST(req: Request) {
     try {
       data = JSON.parse(raw) as Partial<ListingResult>;
     } catch {
-      const fallback = buildListing({ productName, features, category, sourceContext });
+      const fallback = buildListing({ productName, features, category });
       return NextResponse.json(fallback);
     }
 
     const title = (data.title || '').slice(0, 200) || `${productName} — ${category} Edition`;
     const titleAr = (data.titleAr || '').slice(0, 200) || `${productName} — نسخة ${category}`;
-    const bullets = Array.isArray(data.bullets) ? data.bullets.slice(0, 5).map((b) => `${b}`.trim()) : buildListing({ productName, features, category, sourceContext }).bullets;
-    const description = (data.description || '').trim() || buildListing({ productName, features, category, sourceContext }).description;
-    const descriptionAr = (data.descriptionAr || '').trim() || buildListing({ productName, features, category, sourceContext }).descriptionAr;
-    const keywords = Array.isArray(data.keywords) ? data.keywords.slice(0, 10) : buildListing({ productName, features, category, sourceContext }).keywords;
-    const keywordsAr = Array.isArray(data.keywordsAr) ? data.keywordsAr.slice(0, 10) : buildListing({ productName, features, category, sourceContext }).keywordsAr;
+    const bullets = Array.isArray(data.bullets) ? data.bullets.slice(0, 5).map((b) => `${b}`.trim()) : buildListing({ productName, features, category }).bullets;
+    const description = (data.description || '').trim() || buildListing({ productName, features, category }).description;
+    const descriptionAr = (data.descriptionAr || '').trim() || buildListing({ productName, features, category }).descriptionAr;
+    const keywords = Array.isArray(data.keywords) ? data.keywords.slice(0, 10) : buildListing({ productName, features, category }).keywords;
+    const keywordsAr = Array.isArray(data.keywordsAr) ? data.keywordsAr.slice(0, 10) : buildListing({ productName, features, category }).keywordsAr;
+    const imagePrompts = data.imagePrompts || buildListing({ productName, features, category }).imagePrompts;
 
-    return NextResponse.json({ title, titleAr, bullets, description, descriptionAr, keywords, keywordsAr });
+    return NextResponse.json({
+      title,
+      titleAr,
+      bullets,
+      description,
+      descriptionAr,
+      keywords,
+      keywordsAr,
+      imagePrompts,
+      sourceImages: sourceContext.images,
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error.';
     return NextResponse.json({ error: message }, { status: 500 });

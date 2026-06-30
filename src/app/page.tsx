@@ -176,73 +176,70 @@ export default function Home() {
     setRecommendedPrices({});
     setCopied(null);
 
+    let data: any = null;
     try {
-      const res = await fetch("/api/generate-listing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/generate-listing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productName, category, features, platform, sourceUrl }),
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Generation failed.");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Generation failed.');
+      }
+      data = await res.json();
       setResult(data);
-
       if (showHistory) refreshHistory();
 
       if (generateImage) {
-        const prompt =
-          ((data as any)?.imagePrompts?.main ||
-            `${productName} ${features}`);
-
-        const secondaryPrompts = Array.isArray((data as any)?.imagePrompts?.secondary)
-          ? ((data as any).imagePrompts.secondary as string[])
-          : [prompt];
-
-        const imagePayload: string[] = [prompt, ...secondaryPrompts.slice(0, 4)];
+        const prompt = data.imagePrompts?.main || `${productName} ${category} ${features}`;
+        const secondaryPrompts = Array.isArray(data.imagePrompts?.secondary)
+          ? data.imagePrompts.secondary.slice(0, 4)
+          : [];
 
         const imgRes = await fetch('/api/generate-images', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompts: imagePayload }),
+          body: JSON.stringify({ prompts: [prompt, ...secondaryPrompts] }),
         });
         const imgData = await imgRes.json();
         if (!imgRes.ok) throw new Error(imgData?.error || 'Image generation failed.');
-        setImageUrls(imgData.urls as string[]);
+        setImageUrls(imgData.urls);
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Something went wrong.";
+      const message = err instanceof Error ? err.message : 'Something went wrong.';
       setError(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const saveListing = async (data: {
+  const saveListing = async (input: {
     title: string;
     bullets: string[];
     description: string;
   }) => {
     try {
-      const res = await fetch("/api/history", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productName,
           features,
           category,
           platform,
-          title: data.title,
-          bullets: data.bullets,
-          description: data.description,
+          title: input.title,
+          bullets: input.bullets,
+          description: input.description,
           imageUrls,
           imagePrompt: `${productName} ${category} ${features}`,
           recommendedPrices,
-          source: "generated",
+          source: 'generated',
         }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || "Save failed.");
+        throw new Error(err?.error || 'Save failed.');
       }
       return (await res.json()) as { id: number };
     } catch (err) {
@@ -260,8 +257,8 @@ export default function Home() {
 
   const exportCurrent = () => {
     if (!_result?.title) return;
-    const keywords = _result.keywords || [];
-    const keywordsAr = _result.keywordsAr || [];
+    const keywords: string[] = _result.keywords || [];
+    const keywordsAr: string[] = _result.keywordsAr || [];
     const payload = {
       productName,
       category,
@@ -293,9 +290,9 @@ export default function Home() {
     );
   };
 
-  const exportHistoryCsv = () => downloadCsv("listings.csv", history);
-  const exportHistoryJson = () => downloadJson("listings.json", history);
-  const exportHistoryHtml = () => downloadHtml("listings.html", history);
+  const exportHistoryCsv = () => downloadCsv('listings.csv', history);
+  const exportHistoryJson = () => downloadJson('listings.json', history);
+  const exportHistoryHtml = () => downloadHtml('listings.html', history);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
