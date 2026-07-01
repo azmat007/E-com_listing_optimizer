@@ -25,7 +25,7 @@ async function callGroq(prompt: string): Promise<ListingResult> {
   const { OpenAI } = await import('openai');
   const openai = new OpenAI({ apiKey, baseURL: 'https://api.groq.com/openai/v1' });
   const completion = await openai.chat.completions.create({
-    model: 'llama-3.1-70b-versatile',
+    model: 'llama-3.3-70b-versatile',
     temperature: 0.4,
     max_tokens: 2200,
     response_format: { type: 'json_object' },
