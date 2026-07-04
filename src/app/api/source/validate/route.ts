@@ -16,6 +16,7 @@ export async function POST(req: Request) {
       source = { text: '', images: [], title: undefined, features: undefined };
     }
 
+    const { points, images, title, description } = buildSourceValidPoints(source, url);
     const text = (source.text || '').slice(0, 7000);
     const hasUsableContent = Boolean(source.title || source.features || text.trim());
 
@@ -35,14 +36,17 @@ export async function POST(req: Request) {
       }
     }
 
+    const safePoints = Array.isArray(points) ? points : ['No details available.'];
+    const safeImages = Array.isArray(images) ? images : [];
+
     return NextResponse.json({
       status,
       accessible: status !== 'inaccessible',
       verified: hasUsableContent || status === 'verified',
-      title,
-      description,
-      points: notableErrors.length ? [...points, ...notableErrors] : points,
-      images,
+      title: title || '',
+      description: description || '',
+      points: notableErrors.length ? [...safePoints, ...notableErrors] : safePoints,
+      images: safeImages,
       text,
     });
   } catch (err: unknown) {

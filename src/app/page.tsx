@@ -491,23 +491,25 @@ export default function Home() {
         </p>
       )}
 
-      {_result && _result.title && (
+      {_result && (
         <section className="mt-8 space-y-6">
-          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Optimized Title (EN)</h2>
-              <span className="text-xs text-zinc-500">
-                {(_result.title || '').length}/200
-              </span>
+          {(_result.title || '').trim() && (
+            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Optimized Title (EN)</h2>
+                <span className="text-xs text-zinc-500">
+                  {(_result.title || '').length}/200
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-zinc-800">{_result.title}</p>
+              <button
+                onClick={() => copyText(_result.title, 'title')}
+                className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
+              >
+                {copied === 'title' ? 'Copied' : 'Copy title'}
+              </button>
             </div>
-            <p className="mt-2 text-sm text-zinc-800">{_result.title}</p>
-            <button
-              onClick={() => copyText(_result.title, 'title')}
-              className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
-            >
-              {copied === 'title' ? 'Copied' : 'Copy title'}
-            </button>
-          </div>
+          )}
 
           {_result.titleAr && (
             <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">

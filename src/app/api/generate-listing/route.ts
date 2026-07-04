@@ -24,34 +24,47 @@ function buildListing({
   features: string;
   category: string;
 }): ListingResult {
-  const safeCategory = category || 'General';
+  const rawCategory = category || 'Electronics';
+  const safeCategory = rawCategory;
   const featureList = (features || '')
     .split(',')
     .map((f) => f.trim())
     .filter(Boolean);
-  const primaryFeature = featureList[0] || 'premium quality';
+
+  const arCategoryMap: Record<string, string> = {
+    'Electronics': 'إلكترونيات',
+    'Home & Kitchen': 'المنزل والمطبخ',
+    'Fashion': 'أزياء',
+    'Beauty & Personal Care': 'الجمال والعناية الشخصية',
+    'Sports & Outdoors': 'رياضة و Outdoor',
+    'Toys & Games': 'ألعاب',
+    'Automotive': 'سيارات',
+    'Health & Household': 'صحة ومنزل',
+    'Other': 'عام',
+  };
+  const arCategory = arCategoryMap[rawCategory] || rawCategory;
 
   return {
     title: `${productName} — ${safeCategory} Edition`,
-    titleAr: `${productName} — نسخة ${safeCategory}`,
+    titleAr: `${productName} — ${arCategory}`,
     bullets: [
-      `Premium ${safeCategory.toLowerCase()} experience tailored for real use with ${primaryFeature}.`,
-      `Built-in essentials: ${primaryFeature}.`,
-      `Reliable performance with consistent daily results.`,
-      `Easy setup and customer-oriented design.`,
-      `Trusted by professionals and home users alike.`,
+      `Designed around real ${safeCategory.toLowerCase()} use: ${featureList[0] || 'premium build'} for everyday reliability.`,
+      `Core specs: ${featureList.slice(0,3).join(', ') || 'premium-grade materials and finish'}.`,
+      `Built for consistent results in typical ${safeCategory.toLowerCase()} scenarios with clear trade-offs.`,
+      `Setup is straightforward and support-friendly; usable within minutes out of the box.`,
+      `Best suited for buyers comparing similar ${safeCategory.toLowerCase()} models by specs and value.`,
     ],
     bulletsAr: [
-      `تجربة ${safeCategory} متميزة مصممة للاستخدام الفعلي مع ${primaryFeature}.`,
-      `عناصر أساسية مدمجة: ${primaryFeature}.`,
-      `أداء موثوق بنتائج متسقة يومياً.`,
-      `إعداد سهل وتصميم موجه للعملاء.`,
-      `موثوق من قبل المحترفين والمستخدمين المنزليين على حد سواء.`,
+      `مصمم للاستخدام الفعلي في فئة ${arCategory}: ${featureList[0] || 'جودة عالية'} لموثوقية يومية.`,
+      `المواصفات الأساسية: ${featureList.slice(0,3).join('، ') || 'مواد وتشطيب عالي الجودة'}.`,
+      `مصمم لنتائج متسقة في سيناريوهات ${arCategory} الشائعة مع توضيح نقاط القصور.`,
+      `الإعداد مباشر ودعم مريح؛ قابل للاستخدام في دقائق من الفتح.`,
+      `الأفضل لمن يقارن النماذج المماثلة في فئة ${arCategory} حسب المواصفات والقيمة.`,
     ],
-    description: `The ${productName} is a versatile ${safeCategory.toLowerCase()} option designed around the features that matter most: ${features}. It focuses on practical usability, consistent results, and straightforward setup, making it well-suited for both professional and everyday use.`,
-    descriptionAr: `${productName} هو خيار ${safeCategory.toLowerCase()} متعدد الأغراض مصمم حول الميزات الأساسية، بما في ذلك ${primaryFeature}. يركز هذا المنتج على الفائدة العملية والنتائج المتسقة والإعداد البسيط، مما يجعله مثالياً للاستخدام المهني واليومي على حد سواء.`,
-    keywords: [productName, safeCategory, 'UAE', 'Saudi', 'Gulf', ...featureList.slice(0, 3)],
-    keywordsAr: [productName, safeCategory, 'الإمارات', 'السعودية', 'الخليج', ...featureList.slice(0, 3)],
+    description: `The ${productName} is a ${safeCategory.toLowerCase()} option centered on real-world usability. ${featureList.length ? `It offers: ${features}. ` : ''}It is intended for buyers who prioritize measurable functionality and clear everyday value over generic marketing claims.`,
+    descriptionAr: `يعد ${productName} خياراً من فئة ${arCategory} مركّز على الفائدة العملية. ${featureList.length ? `يقدم المواصفات التالية: ${features}. ` : ''}مخصص للمشترين الذين يعطيون الأولوية للوظائف القابلة للقياس والقيمة اليومية الواضحة بدلاً من العبارات التسويقية العامة.`,
+    keywords: [productName, safeCategory, 'UAE', 'Saudi', 'Gulf', ...featureList.slice(0, 5)],
+    keywordsAr: [productName, arCategory, 'الإمارات', 'السعودية', 'الخليج', ...featureList.slice(0, 5)],
     imagePrompts: {
       main: `${productName} on pure white background, professional product photography, studio lighting, sharp focus, no people, no text, no watermark, e-commerce main image`,
       secondary: [
@@ -77,19 +90,26 @@ function getPlatformKnowledge(platform: string): string {
 function getSystemPrompt(platform: string): string {
   const knowledge = getPlatformKnowledge(platform);
   const knowledgeNote = knowledge ? `Platform knowledge:\n${knowledge}\n\n` : '';
-  return `${knowledgeNote}You are a senior e-commerce conversion copywriter for ${platform}.
+  return `${knowledgeNote}You are a senior marketplace conversion copywriter for ${platform}.
 
-Creative rules:
-- State concrete buyer outcomes, not vague claims like "premium", "superb", "best ever".
-- Every bullet must pass: claim → proof — if it cannot be tied to provided source notes, remove it.
-- Sort bullets by buyer priority: problem solved first, performance second, convenience third, durability fourth, extras fifth.
-- If the source notes contain specs, keep them exact; do not round or rename measurements.
-- Use platform-specific language from the knowledge file when it conflicts with generic advice.
+Title rules:
+- Make it product-specific: attribute + variant + what it means for the buyer.
+- Do not use brand stacking unless the product is officially branded.
+- Keep it under 200 chars.
 
-Formatting rules:
-- Generate: title, bullets, description, keywords, and imagePrompts.
-- Do not prepend Brand to title unless the product is branded.
-- Avoid marketing filler entirely.
+Bullets rules:
+- Maximum 5 bullets. Each bullet = claim → proof.
+- Lead with outcome, then supporting spec.
+- If a claim is not supported by source notes or product type, remove it.
+
+Arabic language rules:
+- Write natural Gulf Arabic for UAE/SA buyers. Use proper marketplace register.
+- Do NOT insert English words into Arabic sentences. No "Electronics", "Footnote", "Super Retina", etc inside Arabic text.
+- If a term must appear in English, transliterate to Arabic script only if it is a commonly understood consumer product word; otherwise describe it in Arabic.
+
+Language rules:
+- English fields: strict first-letter capitalization only, no all-caps, no promotional phrases like "free shipping", "best seller".
+- Arabic fields: right-toidiomatic Gulf Arabic only.
 
 Output ONLY valid JSON.`;
 }
@@ -195,14 +215,14 @@ export async function POST(req: Request) {
       return NextResponse.json(fallback);
     }
 
-    const title = (data.title || '').slice(0, 200) || `${productName} — ${category} Edition`;
-    const titleAr = (data.titleAr || '').slice(0, 200) || `${productName} — نسخة ${category}`;
-    const bullets = Array.isArray(data.bullets) ? data.bullets.slice(0, 5).map((b) => `${b}`.trim()) : buildListing({ productName, features, category }).bullets;
-    const bulletsAr = Array.isArray(data.bulletsAr) ? data.bulletsAr.slice(0, 5).map((b) => `${b}`.trim()) : buildListing({ productName, features, category }).bulletsAr;
-    const description = (data.description || '').trim() || buildListing({ productName, features, category }).description;
-    const descriptionAr = (data.descriptionAr || '').trim() || buildListing({ productName, features, category }).descriptionAr;
-    const keywords = Array.isArray(data.keywords) ? data.keywords.slice(0, 10) : buildListing({ productName, features, category }).keywords;
-    const keywordsAr = Array.isArray(data.keywordsAr) ? data.keywordsAr.slice(0, 10) : buildListing({ productName, features, category }).keywordsAr;
+    const title = String(data.title || '').slice(0, 200).trim() || `${productName} — ${category} Edition`;
+    const titleAr = String(data.titleAr || '').slice(0, 200).trim() || `${productName} — ${category}`;
+    const bullets = Array.isArray(data.bullets) ? data.bullets.slice(0, 5).map((b) => typeof b === 'string' ? b.trim() : JSON.stringify(b)).filter(Boolean) : buildListing({ productName, features, category }).bullets;
+    const bulletsAr = Array.isArray(data.bulletsAr) ? data.bulletsAr.slice(0, 5).map((b) => typeof b === 'string' ? b.trim() : JSON.stringify(b)).filter(Boolean) : buildListing({ productName, features, category }).bulletsAr;
+    const description = typeof data.description === 'string' ? data.description.trim() : buildListing({ productName, features, category }).description;
+    const descriptionAr = typeof data.descriptionAr === 'string' ? data.descriptionAr.trim() : buildListing({ productName, features, category }).descriptionAr;
+    const keywords = Array.isArray(data.keywords) ? data.keywords.slice(0, 10).map(String) : buildListing({ productName, features, category }).keywords;
+    const keywordsAr = Array.isArray(data.keywordsAr) ? data.keywordsAr.slice(0, 10).map(String) : buildListing({ productName, features, category }).keywordsAr;
     const imagePrompts = data.imagePrompts || buildListing({ productName, features, category }).imagePrompts;
 
     return NextResponse.json({
