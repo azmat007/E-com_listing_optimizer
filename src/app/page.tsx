@@ -165,7 +165,7 @@ export default function Home() {
     };
   }, [showHistory]);
 
-  const [sourceUrl, setSourceUrl] = useState("");
+  const [sourceUrl, setSourceUrl] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -454,6 +454,21 @@ export default function Home() {
               </button>
             </div>
           )}
+
+          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold">Bullet Points (AR)</h2>
+            <ul className="mt-2 list-disc space-y-1 pr-5 text-sm text-zinc-800" dir="rtl">
+              {(_result.bulletsAr || []).map((bullet, i) => (
+                <li key={`ar-${i}`}>{bullet}</li>
+              ))}
+            </ul>
+            <button
+              onClick={() => copyText((_result.bulletsAr || []).join('\n'), 'bulletsAr')}
+              className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
+            >
+              {copied === 'bulletsAr' ? 'Copied' : 'Copy bullets AR'}
+            </button>
+          </div>
 
           <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold">Bullet Points (EN)</h2>

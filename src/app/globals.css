@@ -1,8 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F5F0E6;
+  --foreground: #2C2416;
+  --sand-50: #FAF7F2;
+  --sand-100: #F2ECD8;
+  --sand-200: #E6DBC2;
+  --sand-300: #D8C9A8;
+  --sand-400: #C9B38A;
+  --sand-500: #B89A6A;
+  --teal-600: #0F5A47;
+  --teal-700: #0A4536;
+  --gold-500: #C49A3B;
+  --gold-600: #A67F2E;
 }
 
 @theme inline {
@@ -16,4 +26,91 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.khaleej-card {
+  background: #ffffff;
+  border: 1px solid var(--sand-200);
+  box-shadow: 0 10px 30px rgba(44, 36, 22, 0.08);
+  border-radius: 1rem;
+}
+
+.khaleej-input {
+  border-radius: 0.75rem;
+  border: 1px solid var(--sand-300);
+  background: #ffffff;
+  padding: 0.75rem 1rem;
+  outline: none;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.khaleej-input:focus {
+  border-color: var(--teal-600);
+  box-shadow: 0 0 0 3px rgba(15, 90, 71, 0.12);
+}
+
+.khaleej-btn-primary {
+  background: var(--teal-600);
+  color: #fff;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  font-weight: 600;
+  transition: transform 0.1s ease, background 0.2s ease;
+}
+
+.khaleej-btn-primary:hover {
+  background: var(--teal-700);
+  transform: translateY(-1px);
+}
+
+.khaleej-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--sand-300);
+  background: #ffffff;
+  color: var(--foreground);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.khaleej-pill {
+  border-radius: 9999px;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid var(--sand-300);
+  background: var(--sand-50);
+  color: var(--foreground);
+  font-size: 0.8rem;
+}
+
+.khaleej-section-title {
+  font-weight: 700;
+  color: var(--foreground);
+  letter-spacing: -0.01em;
+}
+
+.khaleej-subtle-text {
+  color: #6B5D45;
+}
+
+.khaleej-gradient-hero {
+  background: linear-gradient(180deg, rgba(242,236,216,0.6) 0%, #F5F0E6 70%);
+}
+
+.khaleej-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--sand-300), transparent);
+}
+
+.khaleej-image-frame {
+  border-radius: 0.875rem;
+  border: 1px solid var(--sand-200);
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.khaleej-shadow-soft {
+  box-shadow: 0 20px 45px rgba(44, 36, 22, 0.10);
 }
