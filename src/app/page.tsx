@@ -309,19 +309,25 @@ export default function Home() {
         body: JSON.stringify({ url: sourceUrl }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Unable to access link.');
-      setSourcePreview(data);
+      if (!res.ok && res.status !== 422) throw new Error(data?.error || 'Unable to access link.');
+      setSourcePreview({
+        title: data.title,
+        description: data.description,
+        points: Array.isArray(data.points) ? data.points : ['No details available.'],
+        images: Array.isArray(data.images) ? data.images : [],
+      });
       setSourceVerified(true);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Something went wrong.';
       setError(message);
       setSourceVerified(false);
+      setSourcePreview(null);
     } finally {
       setLoadingSource(false);
     }
   };
 
-  const submitDisabled = !productName.trim() || !features.trim() || loading || loadingSource;
+  const submitDisabled = !productName.trim() || !features.trim() || loading;
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
