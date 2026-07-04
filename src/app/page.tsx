@@ -304,19 +304,22 @@ export default function Home() {
     setSourcePreview(null);
     try {
       const res = await fetch('/api/source/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: sourceUrl }),
-      });
-      const data = await res.json();
-      if (!res.ok && res.status !== 422) throw new Error(data?.error || 'Unable to access link.');
-      setSourcePreview({
-        title: data.title,
-        description: data.description,
-        points: Array.isArray(data.points) ? data.points : ['No details available.'],
-        images: Array.isArray(data.images) ? data.images : [],
-      });
-      setSourceVerified(true);
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: sourceUrl }),
+    });
+    const data = await res.json();
+    if (data.status === 'inaccessible') {
+      throw new Error(data.reachableError || data.error || data.note || 'Unable to verify link.');
+    }
+    setSourcePreview({
+      title: data.title,
+      description: data.description,
+      points: Array.isArray(data.points) ? data.points : ['No details available.'],
+      images: Array.isArray(data.images) ? data.images : [],
+    });
+    setSourceVerified(true);
+    setError(null);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Something went wrong.';
       setError(message);

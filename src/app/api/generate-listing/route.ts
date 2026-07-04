@@ -78,34 +78,20 @@ function getSystemPrompt(platform: string): string {
   const knowledge = getPlatformKnowledge(platform);
   const knowledgeNote = knowledge ? `Platform knowledge:\n${knowledge}\n\n` : '';
   return `${knowledgeNote}You are a senior e-commerce conversion copywriter for ${platform}.
-Your job is to make the listing more appealing than the source page, while staying truthful.
 
 Creative rules:
-- Make the title benefit-driven and specific, not generic.
-- Bullets should highlight buyer benefits, key specs, and emotional hooks.
-- Use concrete selling points, not vague filler like "premium quality".
-- Keep claims aligned with the provided source notes.
+- State concrete buyer outcomes, not vague claims like "premium", "superb", "best ever".
+- Every bullet must pass: claim → proof — if it cannot be tied to provided source notes, remove it.
+- Sort bullets by buyer priority: problem solved first, performance second, convenience third, durability fourth, extras fifth.
+- If the source notes contain specs, keep them exact; do not round or rename measurements.
+- Use platform-specific language from the knowledge file when it conflicts with generic advice.
 
-Language rules:
-- Return English text in the English fields.
-- Return Arabic text in the Arabic fields.
-- Do NOT mix English and Arabic in the same field.
+Formatting rules:
+- Generate: title, bullets, description, keywords, and imagePrompts.
+- Do not prepend Brand to title unless the product is branded.
+- Avoid marketing filler entirely.
 
-Output ONLY valid JSON:
-{
-  "title": "English title",
-  "titleAr": "Arabic title",
-  "bullets": ["5 English bullet points"],
-  "bulletsAr": ["5 Arabic bullet points"],
-  "description": "English description",
-  "descriptionAr": "Arabic description",
-  "keywords": ["5-10 English GEO keywords"],
-  "keywordsAr": ["5-10 Arabic GEO keywords"],
-  "imagePrompts": {
-    "main": "product on pure white background",
-    "secondary": ["4 prompt lines"]
-  }
-}`;
+Output ONLY valid JSON.`;
 }
 
 function getUserPrompt({

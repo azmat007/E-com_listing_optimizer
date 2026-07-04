@@ -96,7 +96,7 @@ function extractImages(html: string): string[] {
   return Array.from(new Set(urls));
 }
 
-export async function fetchSourceText(url: string): Promise<SourceResult> {
+export async function fetchSourceText(url: string, fetcher: typeof fetch = fetch): Promise<SourceResult> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
@@ -107,7 +107,7 @@ export async function fetchSourceText(url: string): Promise<SourceResult> {
         accept: 'text/html,application/xhtml+xml',
       },
     };
-    const res = await fetch(url, init);
+    const res = await fetcher(url, init);
     clearTimeout(timeout);
     if (!res.ok) {
       return { ...extractFromUrl(url), images: [] };
@@ -166,4 +166,60 @@ export function buildSourceValidPoints(source: SourceResult, url: string): { poi
   }
 
   return { points, images: source.images.slice(0, 8), title, description: features };
+}
+
+export async function verifyAmazonReachability(url: string): Promise<{ ok: boolean; reason?: string; reachableStatus?: number; redirected?: boolean; trace?: string }> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        accept: 'text/html,application/xhtml+xml',
+      },
+      redirect: 'manual',
+    });
+    clearTimeout(timeout);
+
+    if (res.status === 404 || res.status === 410) {
+      return { ok: false, reachableStatus: res.status, redirected: false, reason: 'Product page appears unavailable (not found).' };
+    }
+    if (res.status === 503 || res.status === 403) {
+      return { ok: false, reachableStatus: res.status, redirected: false, reason: 'Amazon returned an access or bot check page. Temporarily unreachable.' };
+    }
+    if (res.status >= 400) {
+      return { ok: false, reachableStatus: res.status, redirected: false, reason: 'Source page returned an error status.' };
+    }
+
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('text/html') && !contentType.includes('application/xhtml')) {
+      return { ok: false, reachableStatus: res.status, redirected: false, reason: 'Response is not a product page.' };
+    }
+
+    let trace = '';
+    try {
+      const html = (await res.text()).slice(0, 4000);
+      if (/Enter\s*mobile\s*number|OTP|captcha|Enter the characters/i.test(html)) {
+        return { ok: false, reachableStatus: res.status, redirected: false, reason: 'Amazon showed a phone/OTP/CAPTCHA page.' };
+      }
+      trace = html.replace(/\s+/g, ' ').trim()
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .slice(0, 1800);
+    } catch {}
+
+    const redirected = res.redirected || false;
+    return { ok: true, reachableStatus: res.status, redirected, trace };
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'unknown';
+    if (message.includes('aborted') || message.toLowerCase().includes('timeout')) {
+      return { ok: false, reason: 'Request timed out while checking the source link.' };
+    }
+    if (message.includes('ENOTFOUND') || message.includes('EAI_AGAIN')) {
+      return { ok: false, reason: 'Could not resolve the source domain.' };
+    }
+    return { ok: false, reason: 'Unable to verify source page at this time.' };
+  }
 }
