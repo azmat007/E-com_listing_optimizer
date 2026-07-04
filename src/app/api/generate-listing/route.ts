@@ -55,12 +55,12 @@ function buildListing({
     keywords: [productName, safeCategory, 'UAE', 'Saudi', 'Gulf', ...featureList.slice(0, 3)],
     keywordsAr: [productName, safeCategory, 'الإمارات', 'السعودية', 'الخليج', ...featureList.slice(0, 3)],
     imagePrompts: {
-      main: `${productName} product photo on pure white background, no text, no watermark, 80-90% frame fill`,
+      main: `${productName} on pure white background, professional product photography, studio lighting, sharp focus, no people, no text, no watermark, e-commerce main image`,
       secondary: [
-        `${productName} lifestyle shot in UAE home setting, natural light, cozy table`,
-        `${productName} close-up detail shot highlighting texture`,
-        `${productName} in-use action shot, daily real-world usage`,
-        `${productName} clean studio composition angle shot`,
+        `${productName} in everyday home setting, natural window light, lifestyle scene, relatable usage, no text overlay`,
+        `${productName} close-up detail photography, texture and build quality emphasis, macro lighting`,
+        `${productName} real-world action use in UAE home, candid feel, ambient lighting, clean background`,
+        `${productName} clean studio angle shot with soft shadows, premium commercial product photography`,
       ],
     },
   };
@@ -79,8 +79,16 @@ function getPlatformKnowledge(platform: string): string {
 function getSystemPrompt(platform: string): string {
   const knowledge = getPlatformKnowledge(platform);
   const knowledgeNote = knowledge ? `Platform knowledge:\n${knowledge}\n\n` : '';
-  return `${knowledgeNote}You are a professional e-commerce copywriter for ${platform}.
-Rules:
+  return `${knowledgeNote}You are a senior e-commerce conversion copywriter for ${platform}.
+Your job is to make the listing more appealing than the source page, while staying truthful.
+
+Creative rules:
+- Make the title benefit-driven and specific, not generic.
+- Bullets should highlight buyer benefits, key specs, and emotional hooks.
+- Use concrete selling points, not vague filler like "premium quality".
+- Keep claims aligned with the provided source notes.
+
+Language rules:
 - Return English text in the English fields.
 - Return Arabic text in the Arabic fields.
 - Do NOT mix English and Arabic in the same field.
@@ -115,13 +123,19 @@ function getUserPrompt({
   platform: string;
   sourceContext?: string;
 }): string {
+  const sourceNote = sourceContext
+    ? `Source product page notes:\n${sourceContext.slice(0, 5000)}\n`
+    : '';
+
   return `Product: ${productName}
 Category: ${category}
 Features: ${features}
 Platform: ${platform}
-Source page notes: ${(sourceContext || '').slice(0, 4000)}
 
-Generate a bilingual listing optimized for UAE and Saudi Arabian buyers.`;
+${sourceNote}Rewrite this into a higher-converting bilingual listing.
+- Improve the title and bullets to sell outcomes, not just features.
+- Keep Arabic natural for Gulf buyers.
+- Use the source notes above as truth constraints.`;
 }
 
 async function fetchSourceText(url: string): Promise<{ text: string; images: string[]; title?: string; features?: string }> {

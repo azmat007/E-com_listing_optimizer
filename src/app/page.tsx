@@ -166,6 +166,9 @@ export default function Home() {
   }, [showHistory]);
 
   const [sourceUrl, setSourceUrl] = useState('');
+  const [sourcePreview, setSourcePreview] = useState<{ title?: string; description?: string; points: string[]; images: string[] } | null>(null);
+  const [loadingSource, setLoadingSource] = useState(false);
+  const [sourceVerified, setSourceVerified] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -294,6 +297,32 @@ export default function Home() {
   const exportHistoryJson = () => downloadJson('listings.json', history);
   const exportHistoryHtml = () => downloadHtml('listings.html', history);
 
+  const verifySource = async () => {
+    if (!sourceUrl) return;
+    setLoadingSource(true);
+    setSourceVerified(false);
+    setSourcePreview(null);
+    try {
+      const res = await fetch('/api/source/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: sourceUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Unable to access link.');
+      setSourcePreview(data);
+      setSourceVerified(true);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Something went wrong.';
+      setError(message);
+      setSourceVerified(false);
+    } finally {
+      setLoadingSource(false);
+    }
+  };
+
+  const submitDisabled = !productName.trim() || !features.trim() || loading || loadingSource;
+
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
       <header className="mb-10 text-center">
@@ -351,12 +380,48 @@ export default function Home() {
 
           <div>
             <label className="mb-1 block text-sm font-medium">Product Page URL (optional)</label>
-            <input
-              value={sourceUrl}
-              onChange={(e) => setSourceUrl(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2"
-              placeholder="https://www.amazon.ae/dp/..."
-            />
+            <div className="flex flex-wrap gap-2">
+              <input
+                value={sourceUrl}
+                onChange={(e) => {
+                  setSourceUrl(e.target.value);
+                  setSourceVerified(false);
+                  setSourcePreview(null);
+                }}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2"
+                placeholder="https://www.amazon.ae/dp/..."
+              />
+              <button
+                type="button"
+                onClick={verifySource}
+                disabled={loadingSource || !sourceUrl.trim()}
+                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {loadingSource ? 'Checking...' : sourceVerified ? 'Link verified' : 'Verify Link'}
+              </button>
+            </div>
+            {sourceVerified && sourcePreview && (
+              <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm">
+                <p className="font-medium">Extracted Source Pointers</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-zinc-800">
+                  {(sourcePreview.points || []).map((point, idx) => (
+                    <li key={idx}>{point}</li>
+                  ))}
+                </ul>
+                {Array.isArray(sourcePreview.images) && sourcePreview.images.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {sourcePreview.images.slice(0, 4).map((img, idx) => (
+                      <img
+                        key={idx}
+                        src={img}
+                        alt={`Source image ${idx + 1}`}
+                        className="h-16 w-16 rounded-md border border-zinc-200 object-cover"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div>
@@ -383,10 +448,10 @@ export default function Home() {
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
-              disabled={loading}
+              disabled={submitDisabled}
               className="inline-flex h-10 items-center justify-center rounded-lg bg-black px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-500"
             >
-              {loading ? "Generating..." : "Generate Listing"}
+              {loading ? "Generating..." : submitDisabled && loadingSource ? "Verifying link..." : "Generate Listing"}
             </button>
             <button
               type="button"
