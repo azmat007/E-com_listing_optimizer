@@ -94,13 +94,32 @@ function downloadHtml(filename: string, items: HistoryItem[]) {
   downloadText(filename, html);
 }
 
+const CATEGORIES = [
+  "Electronics",
+  "Home & Kitchen",
+  "Fashion",
+  "Beauty & Personal Care",
+  "Sports & Outdoors",
+  "Toys & Games",
+  "Automotive",
+  "Health & Household",
+  "Other",
+];
+
+const PLATFORMS = [
+  { id: "amazon", label: "Amazon" },
+  { id: "noon", label: "Noon" },
+  { id: "carrefour", label: "Carrefour" },
+  { id: "microless", label: "MicroLess" },
+];
+
 export default function Home() {
+  const [view, setView] = useState<"generate" | "history">("generate");
   const [productName, setProductName] = useState("");
   const [category, setCategory] = useState("Electronics");
   const [features, setFeatures] = useState("");
   const [platform, setPlatform] = useState("amazon");
   const [generateImage, setGenerateImage] = useState(true);
-  const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -117,25 +136,6 @@ export default function Home() {
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [recommendedPrices, setRecommendedPrices] = useState<Record<string, number>>({});
 
-  const categories = [
-    "Electronics",
-    "Home & Kitchen",
-    "Fashion",
-    "Beauty & Personal Care",
-    "Sports & Outdoors",
-    "Toys & Games",
-    "Automotive",
-    "Health & Household",
-    "Other",
-  ];
-
-  const platforms = [
-    { id: "amazon", label: "Amazon" },
-    { id: "noon", label: "Noon" },
-    { id: "carrefour", label: "Carrefour" },
-    { id: "microless", label: "MicroLess" },
-  ];
-
   const refreshHistory = async () => {
     try {
       const res = await fetch("/api/history");
@@ -148,7 +148,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (!showHistory) return;
+    if (view !== "history") return;
     let cancelled = false;
     (async () => {
       try {
@@ -163,7 +163,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [showHistory]);
+  }, [view]);
 
   const [sourceUrl, setSourceUrl] = useState('');
   const [sourcePreview, setSourcePreview] = useState<{ title?: string; description?: string; points: string[]; images: string[] } | null>(null);
@@ -192,7 +192,7 @@ export default function Home() {
       }
       data = await res.json();
       setResult(data);
-      if (showHistory) refreshHistory();
+      if (view === "history") refreshHistory();
 
       if (generateImage) {
         const prompt = data.imagePrompts?.main || `${productName} ${category} ${features}`;
@@ -217,40 +217,6 @@ export default function Home() {
     }
   };
 
-  const saveListing = async (input: {
-    title: string;
-    bullets: string[];
-    description: string;
-  }) => {
-    try {
-      const res = await fetch('/api/history', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productName,
-          features,
-          category,
-          platform,
-          title: input.title,
-          bullets: input.bullets,
-          description: input.description,
-          imageUrls,
-          imagePrompt: `${productName} ${category} ${features}`,
-          recommendedPrices,
-          source: 'generated',
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || 'Save failed.');
-      }
-      return (await res.json()) as { id: number };
-    } catch (err) {
-      console.error(err);
-      return null;
-    }
-  };
-
   const copyText = (text: string, label: string) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(label);
@@ -260,8 +226,8 @@ export default function Home() {
 
   const exportCurrent = () => {
     if (!_result?.title) return;
-    const keywords: string[] = _result.keywords || [];
-    const keywordsAr: string[] = _result.keywordsAr || [];
+    const keywords: string[] = (_result as any).keywords || [];
+    const keywordsAr: string[] = (_result as any).keywordsAr || [];
     const payload = {
       productName,
       category,
@@ -291,6 +257,7 @@ export default function Home() {
         ...keywordsAr,
       ].join('\n')
     );
+    copyText("", "export");
   };
 
   const exportHistoryCsv = () => downloadCsv('listings.csv', history);
@@ -304,22 +271,22 @@ export default function Home() {
     setSourcePreview(null);
     try {
       const res = await fetch('/api/source/validate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: sourceUrl }),
-    });
-    const data = await res.json();
-    if (data.status === 'inaccessible') {
-      throw new Error(data.reachableError || data.error || data.note || 'Unable to verify link.');
-    }
-    setSourcePreview({
-      title: data.title,
-      description: data.description,
-      points: Array.isArray(data.points) ? data.points : ['No details available.'],
-      images: Array.isArray(data.images) ? data.images : [],
-    });
-    setSourceVerified(true);
-    setError(null);
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: sourceUrl }),
+      });
+      const data = await res.json();
+      if (data.status === 'inaccessible') {
+        throw new Error(data.reachableError || data.error || data.note || 'Unable to verify link.');
+      }
+      setSourcePreview({
+        title: data.title,
+        description: data.description,
+        points: Array.isArray(data.points) ? data.points : ['No details available.'],
+        images: Array.isArray(data.images) ? data.images : [],
+      });
+      setSourceVerified(true);
+      setError(null);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Something went wrong.';
       setError(message);
@@ -331,433 +298,498 @@ export default function Home() {
   };
 
   const submitDisabled = !productName.trim() || !features.trim() || loading;
+  const cl = (label: string) => (copied === label ? "▸ COPIED" : "COPY ⧉");
+  const keywords: string[] = (_result as any)?.keywords || [];
+  const keywordsAr: string[] = (_result as any)?.keywordsAr || [];
+  const descriptionAr: string | undefined = (_result as any)?.descriptionAr;
+  const imageSlots = ["MAIN · WHITE BG", "LIFESTYLE 01", "LIFESTYLE 02", "DETAIL", "IN-HAND"];
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-16">
-      <header className="mb-10 text-center">
-        <h1 className="text-4xl font-bold tracking-tight">
-          AI Listing Optimizer
-        </h1>
-        <p className="mt-3 text-zinc-600">
-          Generate market-ready listings for Amazon, Noon, Carrefour and MicroLess.
-        </p>
+    <div className="min-h-screen">
+      <header className="relative flex items-center justify-between px-9 py-5 border-b border-white/10 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="w-[34px] h-[34px] rounded-[9px] border grid place-items-center" style={{ borderColor: "var(--acc-line)", background: "var(--acc-dim)" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" stroke="var(--acc)" strokeWidth="1.6" />
+              <path d="M12 22V12M3 7l9 5 9-5" stroke="var(--acc)" strokeWidth="1.6" />
+            </svg>
+          </div>
+          <div>
+            <div className="font-bold text-base tracking-[.06em]">
+              LISTFORGE<span style={{ color: "var(--acc)" }}>_AI</span>
+            </div>
+            <div className="lf-mono text-[10px] tracking-[.14em]" style={{ color: "var(--muted)" }}>
+              LISTING OPTIMIZER · V2.6
+            </div>
+          </div>
+        </div>
+        <nav className="flex gap-2 items-center">
+          <button
+            onClick={() => setView("generate")}
+            className="lf-tab-btn"
+            style={{
+              border: `1px solid ${view === "generate" ? "var(--acc-line)" : "rgba(140,170,200,.18)"}`,
+              background: view === "generate" ? "var(--acc-dim)" : "transparent",
+              color: view === "generate" ? "var(--acc)" : "var(--text-dim)",
+            }}
+          >
+            Generate
+          </button>
+          <button
+            onClick={() => setView("history")}
+            className="lf-tab-btn"
+            style={{
+              border: `1px solid ${view === "history" ? "var(--acc-line)" : "rgba(140,170,200,.18)"}`,
+              background: view === "history" ? "var(--acc-dim)" : "transparent",
+              color: view === "history" ? "var(--acc)" : "var(--text-dim)",
+            }}
+          >
+            History
+          </button>
+          <div className="hidden md:flex items-center gap-2 ml-4 lf-mono text-[10.5px] tracking-[.1em]" style={{ color: "var(--muted-2)" }}>
+            <span
+              className="w-[7px] h-[7px] rounded-full"
+              style={{ background: "var(--acc)", boxShadow: "0 0 8px var(--acc)", animation: "pulse 2.4s infinite" }}
+            />
+            AI ONLINE
+          </div>
+        </nav>
       </header>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="grid gap-5 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium">Product Name</label>
-              <input
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
-                required
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2"
-                placeholder="e.g., UltraSlim Wireless Charger"
-              />
+      {view === "generate" && (
+        <main className="relative grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-7 px-9 py-8 max-w-[1440px] mx-auto items-start">
+          <section className="lf-card p-6 lg:sticky lg:top-6">
+            <div className="flex items-baseline justify-between mb-5">
+              <h2 className="lf-section-title">INPUT CONSOLE</h2>
+              <span className="lf-mono text-[10px]" style={{ color: "#4a5568" }}>01</span>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Category</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2"
-              >
-                {categories.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="lf-label">Product Name</label>
+                <input
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                  required
+                  className="lf-input"
+                  placeholder="e.g., UltraSlim Wireless Charger"
+                />
+              </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium">Platform</label>
-            <select
-              value={platform}
-              onChange={(e) => setPlatform(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2"
-            >
-              {platforms.map((opt) => (
-                <option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium">Product Page URL (optional)</label>
-            <div className="flex flex-wrap gap-2">
-              <input
-                value={sourceUrl}
-                onChange={(e) => {
-                  setSourceUrl(e.target.value);
-                  setSourceVerified(false);
-                  setSourcePreview(null);
-                }}
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2"
-                placeholder="https://www.amazon.ae/dp/..."
-              />
-              <button
-                type="button"
-                onClick={verifySource}
-                disabled={loadingSource || !sourceUrl.trim()}
-                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {loadingSource ? 'Checking...' : sourceVerified ? 'Link verified' : 'Verify Link'}
-              </button>
-            </div>
-            {sourceVerified && sourcePreview && (
-              <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm">
-                <p className="font-medium">Extracted Source Pointers</p>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-zinc-800">
-                  {(sourcePreview.points || []).map((point, idx) => (
-                    <li key={idx}>{point}</li>
-                  ))}
-                </ul>
-                {Array.isArray(sourcePreview.images) && sourcePreview.images.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {sourcePreview.images.slice(0, 4).map((img, idx) => (
-                      <img
-                        key={idx}
-                        src={img}
-                        alt={`Source image ${idx + 1}`}
-                        className="h-16 w-16 rounded-md border border-zinc-200 object-cover"
-                      />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-2">
+                  <label className="lf-label">Category</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="lf-input"
+                  >
+                    {CATEGORIES.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
                     ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="lf-label">Images</label>
+                  <button
+                    type="button"
+                    onClick={() => setGenerateImage((v) => !v)}
+                    className="lf-toggle-btn"
+                    style={{
+                      borderColor: generateImage ? "var(--acc-line)" : "var(--input-border)",
+                      background: generateImage ? "var(--acc-dim)" : "var(--input-bg)",
+                      color: generateImage ? "var(--acc)" : "var(--text-dim)",
+                    }}
+                  >
+                    {generateImage ? "◉ ON" : "○ OFF"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="lf-label">Target Platform</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {PLATFORMS.map((p) => {
+                    const on = platform === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setPlatform(p.id)}
+                        className="lf-toggle-btn"
+                        style={{
+                          borderColor: on ? "var(--acc-line)" : "var(--input-border)",
+                          background: on ? "var(--acc-dim)" : "var(--input-bg)",
+                          color: on ? "var(--acc)" : "var(--text-dim)",
+                        }}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="lf-label">
+                  Product Page URL <span style={{ color: "var(--muted)", fontWeight: 400 }}>— optional</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    value={sourceUrl}
+                    onChange={(e) => {
+                      setSourceUrl(e.target.value);
+                      setSourceVerified(false);
+                      setSourcePreview(null);
+                    }}
+                    className="lf-input lf-mono flex-1 min-w-0"
+                    placeholder="https://www.amazon.ae/dp/..."
+                  />
+                  <button
+                    type="button"
+                    onClick={verifySource}
+                    disabled={loadingSource || !sourceUrl.trim()}
+                    className="lf-toggle-btn px-4 whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{
+                      borderColor: sourceVerified ? "var(--acc-line)" : "rgba(140,170,200,.2)",
+                      background: sourceVerified ? "var(--acc-dim)" : "transparent",
+                      color: sourceVerified ? "var(--acc)" : "var(--text-soft)",
+                    }}
+                  >
+                    {loadingSource ? "SCANNING…" : sourceVerified ? "✓ VERIFIED" : "VERIFY"}
+                  </button>
+                </div>
+                {sourceVerified && sourcePreview && (
+                  <div className="mt-1.5 rounded-[10px] border p-3" style={{ borderColor: "var(--acc-line)", background: "var(--acc-dim)" }}>
+                    <div className="lf-mono text-[10px] tracking-[.14em] mb-2" style={{ color: "var(--acc)" }}>
+                      SOURCE POINTERS EXTRACTED
+                    </div>
+                    <ul className="m-0 pl-4 text-xs flex flex-col gap-1" style={{ color: "var(--text-soft)" }}>
+                      {(sourcePreview.points || []).map((point, idx) => (
+                        <li key={idx}>{point}</li>
+                      ))}
+                    </ul>
+                    {Array.isArray(sourcePreview.images) && sourcePreview.images.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {sourcePreview.images.slice(0, 4).map((img, idx) => (
+                          <img
+                            key={idx}
+                            src={img}
+                            alt={`Source image ${idx + 1}`}
+                            className="h-16 w-16 rounded-md border object-cover"
+                            style={{ borderColor: "var(--panel-border)" }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="lf-label">Key Features</label>
+                <textarea
+                  value={features}
+                  onChange={(e) => setFeatures(e.target.value)}
+                  required
+                  rows={4}
+                  className="lf-textarea"
+                  placeholder="15W fast charging, leather finish, LED indicator..."
+                />
+              </div>
+
+              <div className="flex gap-2.5 mt-1">
+                <button
+                  type="submit"
+                  disabled={submitDisabled}
+                  className="lf-btn-primary flex-1 h-[46px] text-sm"
+                >
+                  {loading ? "GENERATING…" : submitDisabled && loadingSource ? "VERIFYING LINK…" : "⟡ GENERATE LISTING"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    reset();
+                    setImageUrls([]);
+                    setRecommendedPrices({});
+                    setCopied(null);
+                    setSourceUrl('');
+                    setSourceVerified(false);
+                    setSourcePreview(null);
+                    setProductName('');
+                    setFeatures('');
+                  }}
+                  className="lf-btn-ghost h-[46px] px-4 text-sm"
+                >
+                  Reset
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <section className="min-h-[70vh]">
+            {error && (
+              <p className="mb-4 rounded-lg border p-3 text-sm" style={{ borderColor: "rgba(255,90,90,.3)", background: "rgba(255,90,90,.08)", color: "#ff9a9a" }}>
+                {error}
+              </p>
+            )}
+
+            {!loading && !_result && (
+              <div className="h-[70vh] rounded-2xl border border-dashed grid place-items-center" style={{ borderColor: "rgba(140,170,200,.16)" }}>
+                <div className="text-center max-w-[340px]">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl border grid place-items-center" style={{ borderColor: "rgba(140,170,200,.16)", background: "var(--panel)" }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" stroke="#5d6b80" strokeWidth="1.5" strokeLinecap="round" />
+                      <circle cx="12" cy="12" r="3.2" stroke="var(--acc)" strokeWidth="1.5" />
+                    </svg>
+                  </div>
+                  <div className="text-base font-semibold" style={{ color: "var(--text-soft)" }}>Output bay empty</div>
+                  <p className="text-[13px] leading-relaxed mt-2" style={{ color: "var(--muted)" }}>
+                    Describe your product on the left and run the generator. Titles, bullets, keywords and pricing will materialize here — in English and Arabic.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {loading && (
+              <div className="h-[70vh] rounded-2xl border grid place-items-center relative overflow-hidden" style={{ borderColor: "var(--acc-line)", background: "rgba(13,18,30,.5)" }}>
+                <div
+                  className="absolute top-0 left-0 w-[30%] h-0.5"
+                  style={{ background: "linear-gradient(90deg,transparent,var(--acc),transparent)", animation: "scan 1.6s linear infinite" }}
+                />
+                <div className="text-center">
+                  <div
+                    className="w-[54px] h-[54px] mx-auto mb-5 rounded-full border-2"
+                    style={{ borderColor: "var(--acc-dim)", borderTopColor: "var(--acc)", animation: "spin .9s linear infinite" }}
+                  />
+                  <div className="lf-mono text-xs tracking-[.16em]" style={{ color: "var(--acc)" }}>
+                    GENERATING LISTING…
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!loading && _result && (_result.title || '').trim() && (
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="lf-badge">{platform.toUpperCase()}</span>
+                    <span className="lf-mono text-[10.5px] tracking-[.1em]" style={{ color: "var(--muted)" }}>
+                      GENERATED JUST NOW
+                    </span>
+                  </div>
+                  <button onClick={exportCurrent} className="lf-btn-ghost h-[34px] px-4 text-xs">
+                    {copied === "export" ? "▸ EXPORTED" : "EXPORT JSON / TXT"}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="lf-card p-5">
+                    <div className="flex justify-between items-center mb-2.5">
+                      <span className="lf-section-title text-[11px]">TITLE · EN</span>
+                      <span className="lf-mono text-[10px]" style={{ color: "var(--muted)" }}>{(_result.title || '').length}/200</span>
+                    </div>
+                    <p className="m-0 text-sm leading-relaxed">{_result.title}</p>
+                    <button onClick={() => copyText(_result.title, 'title')} className="lf-copy-btn mt-3">{cl('title')}</button>
+                  </div>
+
+                  {_result.titleAr && (
+                    <div className="lf-card p-5" dir="rtl">
+                      <div className="flex justify-between items-center mb-2.5" dir="ltr">
+                        <span className="lf-section-title text-[11px]">TITLE · AR</span>
+                        <span className="lf-mono text-[10px]" style={{ color: "var(--muted)" }}>{(_result.titleAr || '').length}/200</span>
+                      </div>
+                      <p className="m-0 text-sm leading-loose">{_result.titleAr}</p>
+                      <button onClick={() => copyText(_result.titleAr, 'titleAr')} className="lf-copy-btn mt-3">{cl('titleAr')}</button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="lf-card p-5">
+                    <span className="lf-section-title text-[11px]">BULLETS · EN</span>
+                    <ul className="mt-3 pl-4.5 flex flex-col gap-2 text-[13px] leading-relaxed" style={{ color: "var(--text-soft)" }}>
+                      {(_result.bullets || []).map((bullet, i) => (
+                        <li key={i}>{bullet}</li>
+                      ))}
+                    </ul>
+                    <button onClick={() => copyText((_result.bullets || []).join('\n'), 'bullets')} className="lf-copy-btn mt-3.5">{cl('bullets')}</button>
+                  </div>
+
+                  {(_result as any).bulletsAr && (
+                    <div className="lf-card p-5" dir="rtl">
+                      <span className="lf-section-title text-[11px]" dir="ltr">BULLETS · AR</span>
+                      <ul className="mt-3 pr-4.5 flex flex-col gap-2 text-[13px] leading-loose" style={{ color: "var(--text-soft)" }}>
+                        {((_result as any).bulletsAr || []).map((bullet: string, i: number) => (
+                          <li key={`ar-${i}`}>{bullet}</li>
+                        ))}
+                      </ul>
+                      <button onClick={() => copyText(((_result as any).bulletsAr || []).join('\n'), 'bulletsAr')} className="lf-copy-btn mt-3.5">{cl('bulletsAr')}</button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="lf-card p-5">
+                  <span className="lf-section-title text-[11px]">DESCRIPTION · EN</span>
+                  <p className="mt-3 text-[13.5px] leading-relaxed whitespace-pre-line" style={{ color: "var(--text-soft)" }}>
+                    {_result.description}
+                  </p>
+                  <button onClick={() => copyText(_result.description, "description")} className="lf-copy-btn mt-3.5">{cl('description')}</button>
+                </div>
+
+                {descriptionAr && (
+                  <div className="lf-card p-5" dir="rtl">
+                    <span className="lf-section-title text-[11px]" dir="ltr">DESCRIPTION · AR</span>
+                    <p className="mt-3 text-[13.5px] leading-loose whitespace-pre-line">{descriptionAr}</p>
+                    <button onClick={() => copyText(descriptionAr, 'descriptionAr')} className="lf-copy-btn mt-3.5">{cl('descriptionAr')}</button>
+                  </div>
+                )}
+
+                {(keywords.length > 0 || keywordsAr.length > 0) && (
+                  <div className="lf-card p-5">
+                    <div className="flex justify-between items-center">
+                      <span className="lf-section-title text-[11px]">GEO KEYWORDS · EN + AR</span>
+                      <button
+                        onClick={() => copyText([...keywords, ...keywordsAr].join(', '), 'keywords')}
+                        className="lf-copy-btn"
+                      >
+                        {cl('keywords')}
+                      </button>
+                    </div>
+                    <div className="mt-3.5 flex flex-wrap gap-2">
+                      {keywords.map((k, idx) => (
+                        <span key={`en-${idx}`} className="lf-pill">{k}</span>
+                      ))}
+                      {keywordsAr.map((k, idx) => (
+                        <span key={`ar-${idx}`} className="lf-pill" dir="rtl">{k}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {generateImage && (
+                  <div className="lf-card p-5">
+                    <div className="flex justify-between items-baseline">
+                      <span className="lf-section-title text-[11px]">GENERATED IMAGES</span>
+                      <span className="lf-mono text-[10px]" style={{ color: "var(--muted)" }}>
+                        {imageUrls.length > 0 ? "MAIN: WHITE BG · 4 LIFESTYLE" : "PENDING"}
+                      </span>
+                    </div>
+                    {imageUrls.length > 0 ? (
+                      <div className="mt-3.5 grid grid-cols-2 md:grid-cols-5 gap-3">
+                        {imageUrls.map((url, i) => (
+                          <img
+                            key={i}
+                            src={url}
+                            alt={i === 0 ? 'Main product image white background' : 'Generated listing image'}
+                            className="lf-image-slot"
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-3.5 grid grid-cols-2 md:grid-cols-5 gap-3">
+                        {imageSlots.map((label) => (
+                          <div key={label} className="lf-image-slot grid place-items-center">
+                            <div className="text-center">
+                              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                                <rect x="3" y="3" width="18" height="18" rx="3" stroke="#5d6b80" strokeWidth="1.4" />
+                                <circle cx="9" cy="9" r="1.6" fill="#5d6b80" />
+                                <path d="M4 17l5-5 4 4 3-3 4 4" stroke="#5d6b80" strokeWidth="1.4" />
+                              </svg>
+                              <div className="lf-mono text-[9px] mt-1.5 tracking-[.08em]" style={{ color: "var(--muted)" }}>{label}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {Object.keys(recommendedPrices).length > 0 && (
+                  <div className="lf-card p-5">
+                    <div className="flex justify-between items-baseline">
+                      <span className="lf-section-title text-[11px]">RECOMMENDED PRICES</span>
+                      <span className="lf-mono text-[10px]" style={{ color: "var(--muted)" }}>NET OF PLATFORM FEES</span>
+                    </div>
+                    <div className="mt-3.5 grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {Object.entries(recommendedPrices).map(([key, value]) => {
+                        const on = key.toLowerCase() === platform;
+                        return (
+                          <div
+                            key={key}
+                            className="rounded-[11px] p-3.5 text-center border"
+                            style={{
+                              borderColor: on ? "var(--acc-line)" : "rgba(140,170,200,.1)",
+                              background: on ? "var(--acc-dim)" : "rgba(5,8,14,.4)",
+                            }}
+                          >
+                            <div className="lf-mono text-[10px] tracking-[.12em]" style={{ color: "var(--muted-2)" }}>{key.toUpperCase()}</div>
+                            <div className="mt-1.5 text-lg font-bold" style={{ color: on ? "var(--acc)" : "var(--foreground)" }}>
+                              AED {Number(value).toFixed(2)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
             )}
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium">Key Features</label>
-            <textarea
-              value={features}
-              onChange={(e) => setFeatures(e.target.value)}
-              required
-              rows={4}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2"
-              placeholder="15W fast charging, leather finish, LED indicator..."
-            />
-          </div>
-
-          <label className="inline-flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={generateImage}
-              onChange={(e) => setGenerateImage(e.target.checked)}
-            />
-            Generate product images
-          </label>
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="submit"
-              disabled={submitDisabled}
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-black px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-500"
-            >
-              {loading ? "Generating..." : submitDisabled && loadingSource ? "Verifying link..." : "Generate Listing"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                reset();
-                setImageUrls([]);
-                setRecommendedPrices({});
-                setCopied(null);
-              }}
-              className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-300 px-5 py-2 text-sm"
-            >
-              Reset
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowHistory((prev) => !prev)}
-              className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-300 px-5 py-2 text-sm"
-            >
-              {showHistory ? "Hide History" : "Show History"}
-            </button>
-          </div>
-        </form>
-      </section>
-
-      {error && (
-        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </p>
+          </section>
+        </main>
       )}
 
-      {_result && (
-        <section className="mt-8 space-y-6">
-          {(_result.title || '').trim() && (
-            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Optimized Title (EN)</h2>
-                <span className="text-xs text-zinc-500">
-                  {(_result.title || '').length}/200
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-zinc-800">{_result.title}</p>
-              <button
-                onClick={() => copyText(_result.title, 'title')}
-                className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
-              >
-                {copied === 'title' ? 'Copied' : 'Copy title'}
-              </button>
-            </div>
-          )}
-
-          {_result.titleAr && (
-            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Optimized Title (AR)</h2>
-                <span className="text-xs text-zinc-500">
-                  {(_result.titleAr || '').length}/200
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-zinc-800" dir="rtl">
-                {_result.titleAr}
-              </p>
-              <button
-                onClick={() => copyText(_result.titleAr, 'titleAr')}
-                className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
-              >
-                {copied === 'titleAr' ? 'Copied' : 'Copy title AR'}
-              </button>
-            </div>
-          )}
-
-          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Bullet Points (AR)</h2>
-            <ul className="mt-2 list-disc space-y-1 pr-5 text-sm text-zinc-800" dir="rtl">
-              {(_result.bulletsAr || []).map((bullet, i) => (
-                <li key={`ar-${i}`}>{bullet}</li>
-              ))}
-            </ul>
-            <button
-              onClick={() => copyText((_result.bulletsAr || []).join('\n'), 'bulletsAr')}
-              className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
-            >
-              {copied === 'bulletsAr' ? 'Copied' : 'Copy bullets AR'}
-            </button>
-          </div>
-
-          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Bullet Points (EN)</h2>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-800">
-              {(_result.bullets || []).map((bullet, i) => (
-                <li key={i}>{bullet}</li>
-              ))}
-            </ul>
-            <button
-              onClick={() => copyText((_result.bullets || []).join('\n'), 'bullets')}
-              className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
-            >
-              {copied === 'bullets' ? 'Copied' : 'Copy bullets'}
-            </button>
-          </div>
-
-          {(_result as any).descriptionAr && (
-            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold">Description (AR)</h2>
-              <p className="mt-2 whitespace-pre-line text-sm text-zinc-800" dir="rtl">
-                {(_result as any).descriptionAr}
-              </p>
-              <button
-                onClick={() => copyText((_result as any).descriptionAr, 'descriptionAr')}
-                className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
-              >
-                {copied === 'descriptionAr' ? 'Copied' : 'Copy description AR'}
-              </button>
-            </div>
-          )}
-
-          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Description (EN)</h2>
-            <p className="mt-2 whitespace-pre-line text-sm text-zinc-800">
-              {_result.description}
-            </p>
-            <button
-              onClick={() => copyText(_result.description, 'description')}
-              className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
-            >
-              {copied === 'description' ? 'Copied' : 'Copy description'}
-            </button>
-          </div>
-
-          {Array.isArray((_result as any).keywords) && (_result as any).keywords.length > 0 && (
-            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold">GEO Keywords (EN)</h2>
-              <p className="mt-2 flex flex-wrap gap-2 text-sm text-zinc-800">
-                {((_result as any).keywords || []).map((k: string, idx: number) => (
-                  <span key={idx} className="rounded-full border border-zinc-200 px-3 py-1">
-                    {k}
-                  </span>
-                ))}
-              </p>
-              <button
-                onClick={() => copyText(((_result as any).keywords || []).join(', '), 'keywords')}
-                className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
-              >
-                {copied === 'keywords' ? 'Copied' : 'Copy keywords'}
-              </button>
-            </div>
-          )}
-
-          {Array.isArray((_result as any).keywordsAr) && (_result as any).keywordsAr.length > 0 && (
-            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold">GEO Keywords (AR)</h2>
-              <p className="mt-2 flex flex-wrap gap-2 text-sm text-zinc-800" dir="rtl">
-                {((_result as any).keywordsAr || []).map((k: string, idx: number) => (
-                  <span key={idx} className="rounded-full border border-zinc-200 px-3 py-1">
-                    {k}
-                  </span>
-                ))}
-              </p>
-              <button
-                onClick={() => copyText(((_result as any).keywordsAr || []).join(', '), 'keywordsAr')}
-                className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
-              >
-                {copied === 'keywordsAr' ? 'Copied' : 'Copy keywords AR'}
-              </button>
-            </div>
-          )}
-
-          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Description</h2>
-            <p className="mt-2 whitespace-pre-line text-sm text-zinc-800">
-              {_result.description}
-            </p>
-            <button
-              onClick={() => copyText(_result.description, "description")}
-              className="mt-2 rounded-md border border-zinc-300 px-3 py-1 text-xs"
-            >
-              {copied === "description" ? "Copied" : "Copy description"}
-            </button>
-          </div>
-
-          {imageUrls.length > 0 && (
-            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold">Generated Images</h2>
-              <p className="mt-2 text-xs text-zinc-500">
-                Main image: pure white background. Secondary images: lifestyle/detail shots.
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-3">
-                {imageUrls.map((url, i) => (
-                  <img
-                    key={i}
-                    src={url}
-                    alt={i === 0 ? 'Main product image white background' : 'Generated listing image'}
-                    className="rounded-lg border border-zinc-200"
-                  />
-                ))}
+      {view === "history" && (
+        <main className="relative px-9 py-8 max-w-[1240px] mx-auto">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="m-0 text-xl font-bold">Generation History</h2>
+              <div className="lf-mono text-[10.5px] tracking-[.12em] mt-1" style={{ color: "var(--muted)" }}>
+                LOCAL SQLITE · {history.length} RECORDS
               </div>
             </div>
-          )}
-          {generateImage && !imageUrls.length && (
-            <p className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm text-sm text-zinc-500">
-              No images generated yet. Click Generate Listing to create up to 5 product images.
-            </p>
-          )}
-
-          {Object.keys(recommendedPrices).length > 0 && (
-            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold">Recommended Prices</h2>
-              <p className="mt-2 text-xs text-zinc-500">
-                Estimates after typical fees for the selected platform.
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-                {Object.entries(recommendedPrices).map(([key, value]) => (
-                  <div
-                    key={key}
-                    className="rounded-lg border border-zinc-100 bg-zinc-50 p-3 text-center"
-                  >
-                    <div className="text-xs text-zinc-500">{key}</div>
-                    <div className="mt-1 text-lg font-semibold">
-                      AED {Number(value).toFixed(2)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={exportCurrent}
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-black px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-            >
-              Export Current (JSON/TXT)
-            </button>
-          </div>
-        </section>
-      )}
-
-      {showHistory && (
-        <section className="mt-10 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">History</h2>
             <div className="flex gap-2">
-              <button
-                onClick={exportHistoryCsv}
-                className="rounded-md border border-zinc-300 px-3 py-1 text-xs"
-              >
-                Export CSV
-              </button>
-              <button
-                onClick={exportHistoryJson}
-                className="rounded-md border border-zinc-300 px-3 py-1 text-xs"
-              >
-                Export JSON
-              </button>
-              <button
-                onClick={exportHistoryHtml}
-                className="rounded-md border border-zinc-300 px-3 py-1 text-xs"
-              >
-                Export HTML
-              </button>
+              <button onClick={exportHistoryCsv} className="lf-btn-ghost h-[34px] px-3.5 lf-mono text-[11px] tracking-[.06em]">CSV ↓</button>
+              <button onClick={exportHistoryJson} className="lf-btn-ghost h-[34px] px-3.5 lf-mono text-[11px] tracking-[.06em]">JSON ↓</button>
+              <button onClick={exportHistoryHtml} className="lf-btn-ghost h-[34px] px-3.5 lf-mono text-[11px] tracking-[.06em]">HTML ↓</button>
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-zinc-50">
-                <tr>
-                  <th className="px-4 py-3">ID</th>
-                  <th className="px-4 py-3">Platform</th>
-                  <th className="px-4 py-3">Product</th>
-                  <th className="px-4 py-3">Title</th>
-                  <th className="px-4 py-3">Created At</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-4 text-zinc-500">
-                      No history yet.
-                    </td>
-                  </tr>
-                )}
-                {history.map((item) => (
-                  <tr key={item.id} className="border-t border-zinc-100">
-                    <td className="px-4 py-3">{item.id}</td>
-                    <td className="px-4 py-3">{item.platform}</td>
-                    <td className="px-4 py-3">{item.product_name}</td>
-                    <td className="px-4 py-3">{item.title}</td>
-                    <td className="px-4 py-3">
-                      {new Date(item.created_at).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="lf-card overflow-hidden">
+            <div
+              className="grid px-5 py-3 border-b lf-mono text-[10px] tracking-[.14em]"
+              style={{ gridTemplateColumns: "60px 110px 1fr 2fr 170px", borderColor: "rgba(140,170,200,.1)", color: "var(--muted-2)" }}
+            >
+              <span>ID</span><span>PLATFORM</span><span>PRODUCT</span><span>TITLE</span><span>CREATED</span>
+            </div>
+            {history.length === 0 && (
+              <div className="px-5 py-4 text-sm" style={{ color: "var(--muted)" }}>No history yet.</div>
+            )}
+            {history.map((item) => (
+              <div
+                key={item.id}
+                className="grid px-5 py-3.5 border-b text-[12.5px] items-center"
+                style={{ gridTemplateColumns: "60px 110px 1fr 2fr 170px", borderColor: "rgba(140,170,200,.06)", color: "var(--text-soft)" }}
+              >
+                <span className="lf-mono" style={{ color: "var(--muted)" }}>#{item.id}</span>
+                <span><span className="lf-badge lf-mono text-[10px] tracking-[.1em]">{item.platform?.toUpperCase()}</span></span>
+                <span>{item.product_name}</span>
+                <span className="overflow-hidden text-ellipsis whitespace-nowrap pr-3.5" style={{ color: "var(--muted-2)" }}>{item.title}</span>
+                <span className="lf-mono text-[11px]" style={{ color: "var(--muted)" }}>
+                  {new Date(item.created_at).toLocaleString()}
+                </span>
+              </div>
+            ))}
           </div>
-        </section>
+        </main>
       )}
-    </main>
+
+      <footer className="relative px-9 pb-10 pt-4 max-w-[1440px] mx-auto">
+        <div className="h-px" style={{ background: "linear-gradient(90deg,transparent,rgba(140,170,200,.2),transparent)" }} />
+        <div className="mt-5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between lf-mono text-[10px] tracking-[.1em]" style={{ color: "var(--muted)" }}>
+          <p className="m-0">LISTFORGE_AI — built for Gulf sellers.</p>
+          <p className="m-0">Optimized for Amazon AE/SA, Noon, Carrefour and MicroLess workflows.</p>
+        </div>
+      </footer>
+    </div>
   );
 }

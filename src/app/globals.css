@@ -1,116 +1,131 @@
 @import "tailwindcss";
 
-:root {
-  --background: #F5F0E6;
-  --foreground: #2C2416;
-  --sand-50: #FAF7F2;
-  --sand-100: #F2ECD8;
-  --sand-200: #E6DBC2;
-  --sand-300: #D8C9A8;
-  --sand-400: #C9B38A;
-  --sand-500: #B89A6A;
-  --teal-600: #0F5A47;
-  --teal-700: #0A4536;
-  --gold-500: #C49A3B;
-  --gold-600: #A67F2E;
+:root{
+  --background:#05070d;
+  --foreground:#e8eef2;
+  --acc:#ffb84d;
+  --acc-dim:rgba(255,184,77,.14);
+  --acc-line:rgba(255,184,77,.4);
+  --acc-glow:rgba(255,184,77,.26);
+  --panel:rgba(13,18,30,.72);
+  --panel-border:rgba(140,170,200,.12);
+  --input-bg:rgba(5,8,14,.6);
+  --input-border:rgba(140,170,200,.18);
+  --muted:#5d6b80;
+  --muted-2:#7d8ca0;
+  --text-dim:#9fb0c4;
+  --text-soft:#c3cfdd;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+*{box-sizing:border-box}
+
+body{
+  background:var(--background);
+  color:var(--foreground);
+  font-family:var(--font-space-grotesk), 'Space Grotesk', sans-serif;
 }
 
-.khaleej-card {
-  background: #ffffff;
-  border: 1px solid var(--sand-200);
-  box-shadow: 0 10px 30px rgba(44, 36, 22, 0.08);
-  border-radius: 1rem;
+a{color:var(--acc);text-decoration:none}
+a:hover{color:#fff}
+
+input,select,textarea{font-family:inherit}
+input:focus,select:focus,textarea:focus{
+  outline:none;border-color:var(--acc-line)!important;box-shadow:0 0 0 3px var(--acc-dim);
+}
+::placeholder{color:var(--muted)}
+select option{background:#0b0f1a;color:var(--foreground)}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes scan{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}
+@keyframes drift{0%{transform:translate(0,0)}50%{transform:translate(-30px,20px)}100%{transform:translate(0,0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.lf-grid-texture{
+  position:fixed;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(120,160,200,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(120,160,200,.045) 1px,transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,#000 30%,transparent 100%);
 }
 
-.khaleej-input {
-  border-radius: 0.75rem;
-  border: 1px solid var(--sand-300);
-  background: #ffffff;
-  padding: 0.75rem 1rem;
-  outline: none;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+.lf-glow-blob{
+  position:fixed;top:-220px;left:50%;width:900px;height:480px;transform:translateX(-50%);
+  background:radial-gradient(ellipse at center,var(--acc-glow),transparent 65%);
+  filter:blur(60px);pointer-events:none;animation:drift 14s ease-in-out infinite;
 }
 
-.khaleej-input:focus {
-  border-color: var(--teal-600);
-  box-shadow: 0 0 0 3px rgba(15, 90, 71, 0.12);
+.lf-card{
+  border:1px solid var(--panel-border);
+  border-radius:14px;
+  background:var(--panel);
+  backdrop-filter:blur(14px);
 }
 
-.khaleej-btn-primary {
-  background: var(--teal-600);
-  color: #fff;
-  border-radius: 0.75rem;
-  padding: 0.75rem 1.25rem;
-  font-weight: 600;
-  transition: transform 0.1s ease, background 0.2s ease;
+.lf-input{
+  width:100%;height:42px;padding:0 14px;border-radius:10px;
+  border:1px solid var(--input-border);background:var(--input-bg);
+  color:var(--foreground);font-size:13.5px;
 }
 
-.khaleej-btn-primary:hover {
-  background: var(--teal-700);
-  transform: translateY(-1px);
+.lf-textarea{
+  width:100%;padding:12px 14px;border-radius:10px;
+  border:1px solid var(--input-border);background:var(--input-bg);
+  color:var(--foreground);font-size:13.5px;line-height:1.5;resize:vertical;
 }
 
-.khaleej-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  border-radius: 9999px;
-  padding: 0.35rem 0.9rem;
-  border: 1px solid var(--sand-300);
-  background: #ffffff;
-  color: var(--foreground);
-  font-size: 0.8rem;
-  font-weight: 500;
+.lf-label{font-size:12px;font-weight:600;color:var(--text-soft);letter-spacing:.04em}
+
+.lf-mono{font-family:var(--font-jetbrains-mono), 'JetBrains Mono', monospace}
+
+.lf-section-title{font-size:13px;font-weight:600;letter-spacing:.18em;color:var(--text-dim)}
+
+.lf-tab-btn{
+  height:36px;padding:0 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;
+  font-family:inherit;transition:filter .15s ease;
 }
 
-.khaleej-pill {
-  border-radius: 9999px;
-  padding: 0.35rem 0.85rem;
-  border: 1px solid var(--sand-300);
-  background: var(--sand-50);
-  color: var(--foreground);
-  font-size: 0.8rem;
+.lf-toggle-btn{
+  height:40px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;
+  border-width:1px;border-style:solid;
 }
 
-.khaleej-section-title {
-  font-weight: 700;
-  color: var(--foreground);
-  letter-spacing: -0.01em;
+.lf-btn-primary{
+  border:none;border-radius:11px;
+  background:linear-gradient(135deg,var(--acc),color-mix(in oklch,var(--acc),#ff6a3d 45%));
+  color:#1a0e02;font-weight:700;letter-spacing:.03em;cursor:pointer;
+  box-shadow:0 4px 24px var(--acc-glow);font-family:inherit;
+}
+.lf-btn-primary:hover{filter:brightness(1.1)}
+.lf-btn-primary:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+
+.lf-btn-ghost{
+  border-radius:11px;border:1px solid var(--input-border);background:transparent;
+  color:var(--text-dim);font-weight:600;cursor:pointer;font-family:inherit;
+}
+.lf-btn-ghost:hover{border-color:rgba(140,170,200,.4)}
+
+.lf-copy-btn{
+  border:none;background:none;color:var(--muted);font-size:10.5px;letter-spacing:.1em;
+  cursor:pointer;padding:0;font-family:inherit;
+}
+.lf-copy-btn:hover{color:var(--acc)}
+
+.lf-badge{
+  font-family:inherit;font-size:10.5px;letter-spacing:.16em;color:var(--acc);
+  border:1px solid var(--acc-line);background:var(--acc-dim);border-radius:6px;padding:4px 10px;
 }
 
-.khaleej-subtle-text {
-  color: #6B5D45;
+.lf-pill{
+  font-family:inherit;font-size:11px;color:var(--text-soft);
+  border:1px solid var(--input-border);border-radius:999px;padding:5px 12px;background:rgba(5,8,14,.5);
 }
 
-.khaleej-gradient-hero {
-  background: linear-gradient(180deg, rgba(242,236,216,0.6) 0%, #F5F0E6 70%);
-}
-
-.khaleej-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--sand-300), transparent);
-}
-
-.khaleej-image-frame {
-  border-radius: 0.875rem;
-  border: 1px solid var(--sand-200);
-  background: #ffffff;
-  overflow: hidden;
-}
-
-.khaleej-shadow-soft {
-  box-shadow: 0 20px 45px rgba(44, 36, 22, 0.10);
+.lf-image-slot{
+  aspect-ratio:1;border-radius:10px;border:1px solid rgba(140,170,200,.14);
+  background:linear-gradient(160deg,rgba(140,170,200,.08),rgba(5,8,14,.4));
+  overflow:hidden;
 }
